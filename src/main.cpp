@@ -1,6 +1,9 @@
+#include <filesystem>
+
 #include "imgui.h"
 #include "imgui_impl_sdl2.h"
 #include "imgui_impl_sdlrenderer2.h"
+#include <SDL_render.h>
 #include <stdio.h>
 #include <SDL.h>
 #ifdef _WIN32
@@ -15,15 +18,33 @@
 
 #include "DisassemblerView.hpp"
 #include "MessageBox.hpp"
+#include "ResourceManager.hpp"
+#include "DeviceEmulator.hpp"
+#include "EventLog.hpp"
+
+
+namespace fs = std::filesystem;
 
 struct GUIElement {
     void (*handle)(void);
     bool *show;
 } gui_elements[] = {
-    {DrawMessageBox, &show_messagebox},
-    {DrawDisassemblerView, &show_disassembler}
+    {DrawMessageBox, &messagebox_show},
+    {DrawDisassemblerView, &show_disassembler},
+    {DrawDeviceEmulator, &deviceemulator_show},
+    {DrawEventLog, &eventlog_show}
 };
 
+void LoadAllImageResources()
+{
+    if(!fs::exists("/home/binaryfox0/proj/toshiba-t100-pc/resources/images"))
+        return;
+    for(const auto& entry: fs::directory_iterator("/home/binaryfox0/proj/toshiba-t100-pc/resources/images"))
+        if(entry.is_regular_file())
+            ResourceManager::LoadImage(entry.path().filename());
+}
+
+bool done = false;
 void DrawMenuBar()
 {
     if (ImGui::BeginMainMenuBar()) {
@@ -33,29 +54,18 @@ void DrawMenuBar()
                 nfdresult_t result = NFD_OpenDialog( NULL, NULL, &outPath );
                     
                 if ( result == NFD_OKAY ) {
-                    show_messagebox = true;
-                    SetMessageBoxContent("Info", outPath);
+                    DeviceInit(outPath);
                     free(outPath);
                 }
                 else if ( result == NFD_CANCEL ) {
                     puts("User pressed cancel.");
                 }
                 else {
-                    show_messagebox = true;
-                    SetMessageBoxContent("Error", NFD_GetError());
+                    CreateMessageBox("Error", NFD_GetError());
                 }
             }
-            if (ImGui::MenuItem("Save", "Ctrl+S")) {
-                // Handle Save
-            }
             if (ImGui::MenuItem("Exit", "Ctrl+Q")) {
-                // Handle Exit
-            }
-            ImGui::EndMenu();
-        }
-        if (ImGui::BeginMenu("Edit")) {
-            if (ImGui::MenuItem("Undo", "Ctrl+Z")) {
-                // Handle Undo
+                done = true;
             }
             ImGui::EndMenu();
         }
@@ -97,6 +107,8 @@ int main(int, char**)
         SDL_Log("Error creating SDL_Renderer!");
         return -1;
     }
+
+    
     //SDL_RendererInfo info;
     //SDL_GetRendererInfo(renderer, &info);
     //SDL_Log("Current SDL_Renderer: %s", info.name);
@@ -121,24 +133,17 @@ int main(int, char**)
     ImGui_ImplSDL2_InitForSDLRenderer(window, renderer);
     ImGui_ImplSDLRenderer2_Init(renderer);
 
+    ResetEventClock();
+    ResourceManager::Init(renderer);
+    LoadAllImageResources();
+
+    DeviceInit("/home/binaryfox0/proj/toshiba-t100-pc/images/TDISKBASIC.img");
     // Our state
     bool show_demo_window = true;
     bool show_another_window = false;
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
-    static long load_adress = 0xd000;
-    static long file_offset = 0x1000;
-
-    uint8_t memory[65536] = {0};
-    FILE* file = fopen("/home/binaryfox0/proj/toshiba-t100-pc/images/TDISKBASIC.img", "rb");
-    fseek(file, 0, SEEK_END);
-    long file_size = ftell(file);
-    fseek(file, file_offset, SEEK_SET);
-    fread(&memory[load_adress], 1, std::min<long>(file_size - file_offset, sizeof(memory) - load_adress), file);
-    SetupDisassembler(memory, load_adress);
-
     // Main loop
-    bool done = false;
     while (!done)
     {
         SDL_Event event;
@@ -162,7 +167,7 @@ int main(int, char**)
         ImGui::NewFrame();
 
         DrawMenuBar();
-        
+
         for(int i = 0; i < sizeof(gui_elements) / sizeof(gui_elements[0]); i++)
             if(*(gui_elements[i].show))
                 gui_elements[i].handle();

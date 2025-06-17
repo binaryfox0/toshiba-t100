@@ -1,19 +1,21 @@
 #include "MessageBox.hpp"
-#include <string.h>
+#include <string>
 
 #include "imgui.h"
 
-bool show_messagebox = false;
-char messagebox_title[64] = {0};
-char messagebox_content[64] = {0};
+bool messagebox_show = 0;
+const char* messagebox_title = 0;
+const char* messagebox_content = 0;
 
-void SetMessageBoxContent(const char* title, const char* content) {
-    strncpy(messagebox_title,  title, sizeof(messagebox_title));
-    strncpy(messagebox_content,  content, sizeof(messagebox_content));
+
+void CreateMessageBox(const char* title, const char* content) {
+    messagebox_title = title;
+    messagebox_content = content;
+    messagebox_show = true;
 }
 void DrawMessageBox()
 {
-    if (show_messagebox)
+    if (messagebox_show)
         ImGui::OpenPopup(messagebox_title);  // only triggers once
 
     // Set a larger default size
@@ -38,7 +40,7 @@ void DrawMessageBox()
         ImGui::SetCursorPosX(buttonPos);
         if (ImGui::Button("OK", buttonSize)) {
             ImGui::CloseCurrentPopup();
-            show_messagebox = false;
+            messagebox_show = false;
         }
 
         ImGui::Spacing();

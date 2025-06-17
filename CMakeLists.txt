@@ -4,25 +4,16 @@ project(ToshibaT100)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_C_STANDARD 11)
 
-# --- Dependencies ---
-
-# SDL2
 find_package(SDL2 REQUIRED)
 
-# GTK3 for NativeFileDialog
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GTK3 REQUIRED gtk+-3.0)
 
-# --- Source files ---
-
-# NativeFileDialog
 set(NFD_SOURCES
     deps/nativefiledialog/src/nfd_common.c
     deps/nativefiledialog/src/nfd_gtk.c
 )
 
-
-# Dear ImGui
 set(IMGUI_DIR ${CMAKE_SOURCE_DIR}/deps/imgui)
 set(IMGUI_BACKENDS ${IMGUI_DIR}/backends)
 
@@ -36,35 +27,46 @@ set(IMGUI_SOURCES
     ${IMGUI_BACKENDS}/imgui_impl_sdlrenderer2.cpp
 )
 
-# Project sources
 file(GLOB SOURCES src/*.c src/*.cpp)
 file(GLOB HEADERS include/*.hpp)
-
-# --- Executable ---
 
 add_executable(ToshibaT100
     ${NFD_SOURCES}
     ${IMGUI_SOURCES}
     ${SOURCES}
     ${HEADERS}
+    deps/z80/z80.c
 )
+# target_compile_options(ToshibaT100 PRIVATE
+    # $<$<CONFIG:Debug>:-fsanitize=address -g -O1>
+# )
+# target_link_options(ToshibaT100 PRIVATE
+    # $<$<CONFIG:Debug>:-fsanitize=address>
+# )
 
-# --- Include directories ---
+
+set(RESOURCE_DIR "${CMAKE_SOURCE_DIR}/resources")
+set(DEST_DIR     "${CMAKE_BINARY_DIR}/resources")
+add_custom_command(
+    TARGET ToshibaT100 POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+            ${RESOURCE_DIR} ${DEST_DIR}
+    COMMENT ""   
+)
 
 target_include_directories(ToshibaT100 PRIVATE
     ${SDL2_INCLUDE_DIRS}
     ${GTK3_INCLUDE_DIRS}
     include/
     deps/nativefiledialog/src/include
+    deps/stb
+    deps/z80
+    deps/include # For z80_cpp
     ${IMGUI_DIR}
     ${IMGUI_BACKENDS}
 )
-
-# --- Libraries ---
 
 target_link_libraries(ToshibaT100 PRIVATE
     ${SDL2_LIBRARIES}
     ${GTK3_LIBRARIES}
 )
-
-add_subdirectory(tests)

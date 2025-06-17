@@ -4,3 +4,9 @@
 [submodule "deps/imgui"]
 	path = deps/imgui
 	url = https://github.com/ocornut/imgui.git
+[submodule "deps/stb"]
+	path = deps/stb
+	url = https://github.com/nothings/stb.git
+[submodule "deps/z80"]
+	path = deps/z80
+	url = https://github.com/superzazu/z80.git

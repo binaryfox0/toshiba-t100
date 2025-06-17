@@ -163,7 +163,7 @@ char* regs_str[] = {
     "af", "bc", "de", "hl", "z", "nz", "nc", "sp", "po", "pe",
     "p", "m"
 };
-const uint8_t insts_operand[][2] = {
+const uint8_t z80_main_operands[][2] = {
     // 00 - 0F
     {NONE,      NONE},         {BC,        N16},  {BC | ADDR,  A},          {BC,        NONE},
     {B,         NONE},         {B,         NONE}, {B,          N8},         {NONE,      NONE},
@@ -172,7 +172,7 @@ const uint8_t insts_operand[][2] = {
     // 10 - 1F
     {SIGNED8,   NONE},         {DE,        N16},  {DE | ADDR,  A},          {DE,        NONE},
     {D,         NONE},         {D,         NONE}, {D,          N8},         {NONE,      NONE},
-    {D,         SIGNED8},      {HL,        DE},   {A,          DE | ADDR},  {DE,        NONE},
+    {SIGNED8,   NONE},         {HL,        DE},   {A,          DE | ADDR},  {DE,        NONE},
     {E,         NONE},         {E,         NONE}, {E,          N8},         {NONE,      NONE},
     // 20 - 2F
     {NZ,        SIGNED8},      {HL,        N16},  {N16 | ADDR, HL},         {HL,        NONE},
@@ -247,7 +247,6 @@ const uint8_t insts_operand[][2] = {
 };
 
 
-const uint64_t insts_operand_size = sizeof(insts_operand) / sizeof(insts_operand[0]);
 INLINE uint8_t extract_number(uint8_t operand_inst) { return operand_inst & 0b01100000; }
 INLINE bool is_number(uint8_t operand_inst) { return extract_number(operand_inst) > 0b00011111; }
 
@@ -295,15 +294,14 @@ INLINE void operand_to_str(char* buffer, size_t maxlen, const uint8_t *operand_b
     }
 }
 
-void z80_get_operands(const uint8_t* opcode, char* buffer, uint64_t maxlen)
+void z80_get_operands(const uint8_t* opcode, char* out, uint64_t maxlen, char* out2, uint64_t maxlen2)
 {
-    const uint8_t* inst_operand = insts_operand[opcode[0]];
+    const uint8_t* inst_operand = z80_main_operands[opcode[0]];
     if(inst_operand[0] == NONE && opcode[0] != 0xff)
         return;
     char buffer1[16] = {0};
-    char buffer2[16] = {0};
     operand_to_str(buffer1, sizeof(buffer1), opcode, inst_operand[0], false);
-    operand_to_str(buffer2, sizeof(buffer2), opcode, inst_operand[1], true);
+    operand_to_str(out2, maxlen2, opcode, inst_operand[1], true);
 
-    snprintf(buffer, maxlen, "%s%s%s", buffer1, *buffer2 ? ", " : "", *buffer2 ? buffer2 : "");
+    snprintf(out, maxlen, "%s%s", buffer1, *out2 ? ", " : "");
 }

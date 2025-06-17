@@ -79,7 +79,7 @@ INLINE uint8_t z80_get_instr_len(const uint8_t *instr) {
         return inst_len[instr[0]];
 }
 
-void z80_get_operands(const uint8_t *opcode, char* buffer, uint64_t maxlen);
+void z80_get_operands(const uint8_t* opcode, char* out, uint64_t maxlen, char* out2, uint64_t maxlen2);
 
 #ifdef __cplusplus
 };

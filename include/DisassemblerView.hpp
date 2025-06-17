@@ -5,6 +5,6 @@
 extern bool show_disassembler;
 void DrawDisassemblerView();
 
-void SetupDisassembler(const uint8_t* memory_in, uint16_t address);
+void SetupDisassembler(const uint8_t* memory_in, uint16_t address, uint32_t size_in);
 
 #endif
