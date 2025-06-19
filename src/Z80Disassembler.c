@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 
-const char* inst_mnemonics[] =
+const char* z80_instr_mnemonics[] =
 {
     "nop", "ld", "inc", "dec", "rlca", "ex", "add", "rrca",
     "djnz", "rla", "jr", "rra",
@@ -259,8 +259,8 @@ INLINE void operand_number(char* buffer, size_t maxlen, const uint8_t* operand_b
     {
     case N8: {
         if(sign) {
-            if(addr) snprintf(buffer, maxlen, "(%d)", operand_bytes[1]);
-            else     snprintf(buffer, maxlen, "%d", operand_bytes[1]);
+            if(addr) snprintf(buffer, maxlen, "(%d)", (int8_t)operand_bytes[1]);
+            else     snprintf(buffer, maxlen, "%d", (int8_t)operand_bytes[1]);
         } else {
             if(addr) snprintf(buffer, maxlen, "(0x%02X)", operand_bytes[1]);
             else     snprintf(buffer, maxlen, "0x%02X", operand_bytes[1]);

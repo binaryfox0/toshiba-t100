@@ -1,20 +1,18 @@
 #include "DeviceEmulator.hpp"
 
-#include <cstring>
 #include <stdint.h>
 #include <errno.h> // get error message from syscall
 
 #include <fstream>
 #include <string>
-#include <sstream>
-#include <type_traits>
-#include <iomanip>
+#include <cstring>
+#include <map>
 
 #include "MessageBox.hpp"
 #include "EventLog.hpp"
 #include "DisassemblerView.hpp"
 
-#include "Z80Disassembler.h"
+#include "Internal.h"
 #include "imgui.h"
 
 // Reference:
@@ -33,23 +31,15 @@
 // "tracks 1-7 hold IPL program and BASIC (if system disk)"
 // Maybe this is the system disk
 
+// p10 ToshibaT100_tech_ref_Eng.pdf
 static uint8_t toshiba_ram[0x10000] = {0};
 static uint8_t toshiba_rom[0x8000] = {0};
+// p7  ToshibaT100_tech_reg_Eng,pdf
+// static uint8_t toshiba_vram[0x4000] = {0};
 static bool builtin_rom_active = true;
 
 // Shared stuff
 bool deviceemulator_show = false;
-
-template<typename T>
-inline typename std::enable_if<std::is_integral<T>::value, std::string>::type
-to_hex(T val) {
-    std::stringstream ss;
-    ss << "0x"
-       << std::hex << std::setw(sizeof(T) * 2)
-       << std::uppercase << std::setfill('0')
-       << static_cast<uint64_t>(val);  // cast avoids char printing weirdness
-    return ss.str();
-}
 
 
 uint8_t cpu_read(void* context, uint16_t address) {
@@ -66,12 +56,25 @@ void cpu_write(void* context, uint16_t address, uint8_t value) {
 }
 
 uint8_t cpu_in(z80* cpu, uint8_t port) {
-    AddNewEvent("CPU trying to read data from port: " + to_hex(port));
+    static std::map<uint8_t, std::string> in_actions = {
+        {0xE4, "(uPD765 Status Register)"}
+    };
+    AddNewEvent("CPU trying to read data from port: " + to_hex(port) + " " + in_actions[port]);
     return 0;
 }
 
 void cpu_out(z80* cpu, uint8_t port, uint8_t value) {
-    AddNewEvent("CPU trying to write data to port: " + to_hex(port) + " with value: " + to_hex(value));
+    static std::map<uint8_t, std::string> out_actions = {
+        {0xE6, "(uPD765 FDC Control Port)"}
+    };
+    AddNewEvent("CPU trying to write data to port: " + to_hex(port) + " with value: " + to_hex(value) + " " + out_actions[port]);
+    switch(port)
+    {
+    case 0xE4:
+        break;
+    case 0xE6:
+        break;
+    }
 }
 
 z80 z80_cpu = {0};

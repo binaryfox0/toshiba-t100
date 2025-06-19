@@ -1,11 +1,8 @@
-#include <filesystem>
-
-#include "imgui.h"
-#include "imgui_impl_sdl2.h"
-#include "imgui_impl_sdlrenderer2.h"
-#include <SDL_render.h>
 #include <stdio.h>
 #include <SDL.h>
+
+#include <filesystem>
+
 #ifdef _WIN32
 #include <windows.h>        // SetProcessDPIAware()
 #endif
@@ -14,6 +11,11 @@
 #error This backend requires SDL 2.0.17+ because of SDL_RenderGeometry() function
 #endif
 
+
+#include "imgui.h"
+#include "imgui_impl_sdl2.h"
+#include "imgui_impl_sdlrenderer2.h"
+
 #include <nfd.h>
 
 #include "DisassemblerView.hpp"
@@ -21,6 +23,7 @@
 #include "ResourceManager.hpp"
 #include "DeviceEmulator.hpp"
 #include "EventLog.hpp"
+#include "RegistersView.hpp"
 
 
 namespace fs = std::filesystem;
@@ -32,7 +35,8 @@ struct GUIElement {
     {DrawMessageBox, &messagebox_show},
     {DrawDisassemblerView, &show_disassembler},
     {DrawDeviceEmulator, &deviceemulator_show},
-    {DrawEventLog, &eventlog_show}
+    {DrawEventLog, &eventlog_show},
+    {DrawRegistersView, &registersview_show}
 };
 
 void LoadAllImageResources()

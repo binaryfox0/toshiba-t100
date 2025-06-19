@@ -3,11 +3,7 @@
 
 #include <stdint.h>
 
-#if defined(_MSC_VER)
-#   define INLINE __forceinline
-#else
-#   define INLINE static inline __attribute((always_inline))
-#endif
+#include "Internal.h"
 
 #ifdef __cplusplus
 extern "C"  {
@@ -48,7 +44,7 @@ enum {
     NON // Non-existent
 };
 
-extern const char* inst_mnemonics[];
+extern const char*   z80_instr_mnemonics[];
 extern const uint8_t inst_mnemonics_index[];
 extern const uint8_t cb_instr_mnemonics_index[];
 extern const uint8_t ed_instr_mnemonics_index[];
@@ -68,8 +64,12 @@ INLINE uint8_t z80_get_type(const uint8_t* opcode) {
         return inst_mnemonics_index[*opcode];
 }
 
-INLINE const char* z80_get_mnemonic(const uint8_t* opcode) {
-    return inst_mnemonics[z80_get_type(opcode)];
+INLINE const char* z80_get_mnemonic_from_bytes(const uint8_t* opcode) {
+    return z80_instr_mnemonics[z80_get_type(opcode)];
+}
+
+INLINE const char* z80_get_mnemonic_from_index(const uint8_t index) {
+    return z80_instr_mnemonics[index];
 }
 
 INLINE uint8_t z80_get_instr_len(const uint8_t *instr) {
