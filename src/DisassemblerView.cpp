@@ -2,10 +2,13 @@
 
 #include <cstdint>
 #include <cstdio>
+#include <iterator>
 #include <stack>
 #include <queue>
 #include <unordered_map>
 #include <unordered_set>
+#include <vector>
+#include <algorithm> // std::find_if
 
 #include "EventLog.hpp"
 #include "ResourceManager.hpp"
@@ -41,12 +44,17 @@ static std::stack<uint16_t> history;
 static std::unordered_map<uint16_t, DisassembleInstr> parsed;
 static std::unordered_map<uint16_t, uint16_t> parsed_jump_address;
 
+struct display_instr {
+    bool is_separator;
+    uint16_t address;
+};
+static std::vector<display_instr> display_indexes;
+
 static uint16_t load_address = 0;
 static uint32_t memory_size = 0;
 
 // To prevent something like jr that like jr will jump to pos still in range
 static uint16_t display_addr_end = 0;
-static uint16_t display_instr_count = 0;
 
 // Highlighting for instruction that jp/call/jr is pointing to
 static int highlight_addr = -1;
@@ -75,26 +83,28 @@ void UpdateDisplayRange(uint16_t address, bool push)
 {
     while (parsed.count(address) == 0 && address > load_address)
         address--;
-
+    if(!history.empty())
+        if(in_range(history.top(), display_addr_end, address))
+            return;
     uint16_t display_addr_start = address;
     while (FindPreviousInstruction(display_addr_start)) {}
 
-    if (push && (history.empty() || history.top() != display_addr_start))
+    if (push)
         history.push(display_addr_start);
 
     display_addr_end = display_addr_start;
-    display_instr_count = 0;
-
+    display_indexes.clear();
     while (true)
     {
         auto it = parsed.find(display_addr_end);
         if (it == parsed.end())
             break;
+        display_indexes.push_back({false, display_addr_end});
+        if(it->second.type == RET)
+            display_indexes.push_back({true});
         display_addr_end += it->second.size;
-        display_instr_count++;
     }
 }
-
 
 void DrawInvisibleAddressButton(const char* operand, uint16_t address)
 {
@@ -304,8 +314,7 @@ void DrawDisassemblerView()
     DrawDisassemblerToolbar();
 
     ImDrawList *draw_list = ImGui::GetForegroundDrawList();
-
-    ImGui::BeginChild("ScrollRegion", ImVec2(0, 0), true, ImGuiWindowFlags_AlwaysVerticalScrollbar);
+    ImGui::BeginChild("ScrollRegion", ImVec2(0, 0), 0, 0);
     if (ImGui::BeginTable("##instr_view", 6, ImGuiTableFlags_SizingStretchProp))
     {
         ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_TableRowBg));
@@ -314,19 +323,13 @@ void DrawDisassemblerView()
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, ImGui::GetStyle().FramePadding.y));
 
         ImGuiListClipper clipper;
-        clipper.Begin(display_instr_count);
+        clipper.Begin(display_indexes.size());
 
         if (focus_addr != -1) {
             uint16_t tmp = history.top();
-            int index = 0;
-            while (parsed.count(tmp) > 0) {
-                if (tmp == focus_addr) {
-                    ImGui::SetScrollY(ImGui::GetTextLineHeightWithSpacing() * index);
-                    break;
-                }
-                tmp += parsed[tmp].size;
-                index++;
-            }
+            auto it = std::find_if(display_indexes.begin(), display_indexes.end(), [](const display_instr& i){ return i.address == focus_addr; });
+            if(it != display_indexes.end())
+                ImGui::SetScrollY(ImGui::GetTextLineHeightWithSpacing() * std::distance(display_indexes.begin(), it));
             focus_addr = -1;
         }
 
@@ -343,14 +346,20 @@ void DrawDisassemblerView()
                     ) {}
             }
 
-            uint16_t tmp = clipper_addr_start;
             for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++) {
-                bool is_pc = tmp == DeviceResources::CPU.pc;
-                DisassembleInstr& instr = parsed[tmp];
+                const display_instr& _instr = display_indexes[i];
+                if(_instr.is_separator) {
+                    ImGui::TableNextRow();
+                    ImGui::TableNextColumn();
+                    ImGui::TextUnformatted(" ");
+                    continue;
+                }
+                bool is_pc = _instr.address == DeviceResources::CPU.pc;
+                DisassembleInstr& instr = parsed[_instr.address];
 
                 ImGui::TableNextRow();
                 ImGui::TableSetColumnIndex(0);
-                ImGui::PushID(tmp);
+                ImGui::PushID(_instr.address);
                 bool highlight = highlight_addr == instr.address || is_pc;
                 if (ImGui::Selectable("##row_select", highlight,
                     ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowOverlap, ImVec2(0, 0))) {
@@ -358,16 +367,6 @@ void DrawDisassemblerView()
                 }
                 ImGui::PopID();
                 DrawDisassembleRow(instr, is_pc, draw_list);
-                if (instr.type == RET) {
-                    ImGui::TableNextRow();
-                    ImGui::TableSetColumnIndex(0);
-                    ImGui::PushID(tmp + 0xffff);
-                    ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg1, IM_COL32(80, 80, 80, 30));
-                    ImGui::TextUnformatted(" "); // Blank line
-                    ImGui::PopID();
-                }
-
-                tmp += instr.size;
             }
         }
         clipper.End();
@@ -480,6 +479,7 @@ void Disassemble(uint16_t address)
 }
 
 void GotoBreakpoint(uint16_t address) {
+    UpdateDisplayRange(address, true);
     focus_addr = address;
     UpdatePauseResumeButtonImage();
 }

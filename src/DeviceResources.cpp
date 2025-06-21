@@ -30,7 +30,9 @@ std::atomic<bool> DeviceResources::CPUPause     = true;
 std::atomic<bool> DeviceResources::CPUExit      = false;
 std::thread DeviceResources::CPUThread;
 
-std::unordered_map<uint16_t, bool> DeviceResources::CPUBreak = {};
+std::unordered_map<uint16_t, bool> DeviceResources::CPUBreak = {
+    {0xD1FB, true} // First port E4h read
+};
 void (*DeviceResources::BreakHandle)(uint16_t) = nullptr;
 
 void DeviceResources::LoadDiskBasic(const char* disk_path)
@@ -95,8 +97,12 @@ void DeviceResources::CPUExecutionLoop()
             unsigned long frame_start_cycle = CPU.cyc;
             while(CPU.cyc - frame_start_cycle < CYCLES_PER_FRAME)
             {
-                if(CPUPause)
+                if(CPUBreak[CPU.pc]) {
+                    CPUPause = true;
+                    if(BreakHandle)
+                        BreakHandle(CPU.pc);
                     break;
+                }
                 z80_step(&CPU);
             }
             auto frame_end = Clock::now();
@@ -110,11 +116,6 @@ void DeviceResources::CPUExecutionLoop()
 
 uint8_t DeviceResources::CPUReadByte(void* context, uint16_t address)
 {
-    if(CPUBreak[address + 1]) {
-        CPUPause = true;
-        if(BreakHandle)
-            BreakHandle(address + 1);
-    }
     if(address < 0x8000 && ROMActive)
         return ROM[address];
     return RAM[address];
@@ -131,7 +132,11 @@ void DeviceResources::CPUWriteByte(void* context, uint16_t address, uint8_t valu
 uint8_t DeviceResources::CPUIn(z80* cpu, uint8_t port)
 {
     static std::unordered_map<uint8_t, std::string> in_actions = {
-        {0xE4, "(uPD765 Status Register)"}
+        // p17
+        {0x3C, "(Memory Bank Selection)"},
+        // p57
+        {0xE4, "(uPD765 Main Status Register)"},
+        {0xE5, "(uPD765 Data Register)"},
     };
     AddNewEvent("CPU trying to read data from port: " + to_hex(port) + " " + in_actions[port]);
     switch(port) {
@@ -143,13 +148,13 @@ uint8_t DeviceResources::CPUIn(z80* cpu, uint8_t port)
 void DeviceResources::CPUOut(z80* cpu, uint8_t port, uint8_t value)
 {
     static std::unordered_map<uint8_t, std::string> out_actions = {
-        {0xE6, "(uPD765 FDC Control Port)"}
+        {0xE0, "(uPD765 TL Signal On)"},
+        {0xE2, "(uPD765 TL Signal Off)"},
+        {0xE6, "(uPD765 Control Signal)"}
     };
     AddNewEvent("CPU trying to write data to port: " + to_hex(port) + " with value: " + to_hex(value) + " " + out_actions[port]);
     switch(port)
     {
-    case 0xE4:
-        break;
     case 0xE6:
         break;
     }

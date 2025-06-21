@@ -66,6 +66,8 @@ void DrawEventLog()
         events.clear();
         ResetEventClock();
     }
+    ImGui::SameLine();
+    ImGui::Text("Total event count: %lu\n", events.size());
     ImGui::BeginChild("##events", ImVec2(0, 0), ImGuiChildFlags_Borders);
     if(events.empty())
     {

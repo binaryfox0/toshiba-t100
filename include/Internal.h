@@ -50,6 +50,11 @@ INLINE std::string to_bin(T val) {
     }
     return ss.str();
 }
+
+template<typename T>
+INLINE bool in_range(T begin, T end, T value) {
+    return value >= begin && value <= end;
+}
 #endif
 
 #endif
