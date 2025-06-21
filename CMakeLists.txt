@@ -9,10 +9,8 @@ find_package(SDL2 REQUIRED)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GTK3 REQUIRED gtk+-3.0)
 
-set(NFD_SOURCES
-    deps/nativefiledialog/src/nfd_common.c
-    deps/nativefiledialog/src/nfd_gtk.c
-)
+set(NFD_PORTAL ON)
+add_subdirectory(deps/nativefiledialog-extended)
 
 set(IMGUI_DIR ${CMAKE_SOURCE_DIR}/deps/imgui)
 set(IMGUI_BACKENDS ${IMGUI_DIR}/backends)
@@ -28,13 +26,10 @@ set(IMGUI_SOURCES
 )
 
 file(GLOB SOURCES src/*.c src/*.cpp)
-file(GLOB HEADERS include/*.hpp)
 
 add_executable(ToshibaT100
-    ${NFD_SOURCES}
     ${IMGUI_SOURCES}
     ${SOURCES}
-    ${HEADERS}
     deps/z80/z80.c
 )
 # target_compile_options(ToshibaT100 PRIVATE
@@ -69,4 +64,5 @@ target_include_directories(ToshibaT100 PRIVATE
 target_link_libraries(ToshibaT100 PRIVATE
     ${SDL2_LIBRARIES}
     ${GTK3_LIBRARIES}
+    nfd
 )

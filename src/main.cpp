@@ -1,3 +1,4 @@
+#include "DeviceResources.hpp"
 #include <stdio.h>
 #include <SDL.h>
 
@@ -21,20 +22,21 @@
 #include "DisassemblerView.hpp"
 #include "MessageBox.hpp"
 #include "ResourceManager.hpp"
-#include "DeviceEmulator.hpp"
+#include "DeviceResources.hpp"
 #include "EventLog.hpp"
 #include "RegistersView.hpp"
 
 
 namespace fs = std::filesystem;
 
+bool show_demo = false;
 struct GUIElement {
     void (*handle)(void);
     bool *show;
 } gui_elements[] = {
+    {[](){ImGui::ShowDemoWindow();}, &show_demo},
     {DrawMessageBox, &messagebox_show},
     {DrawDisassemblerView, &show_disassembler},
-    {DrawDeviceEmulator, &deviceemulator_show},
     {DrawEventLog, &eventlog_show},
     {DrawRegistersView, &registersview_show}
 };
@@ -55,20 +57,20 @@ void DrawMenuBar()
         if (ImGui::BeginMenu("File")) {
             if (ImGui::MenuItem("Open", "Ctrl-O")) {
                 nfdchar_t *outPath = NULL;
-                nfdresult_t result = NFD_OpenDialog( NULL, NULL, &outPath );
+                nfdresult_t result = NFD_OpenDialog(&outPath, 0, 0, 0);
                     
                 if ( result == NFD_OKAY ) {
-                    DeviceInit(outPath);
-                    free(outPath);
-                }
-                else if ( result == NFD_CANCEL ) {
-                    puts("User pressed cancel.");
+                    DeviceResources::LoadDiskBasic(outPath);
+                    NFD_FreePathU8(outPath);
                 }
                 else {
                     CreateMessageBox("Error", NFD_GetError());
                 }
             }
-            if (ImGui::MenuItem("Exit", "Ctrl+Q")) {
+            if(ImGui::MenuItem(show_demo ? "Close ImGui Demo" : "Show ImGui Demo")) {
+                show_demo = !show_demo;
+            }
+            if (ImGui::MenuItem("Exit", "Ctrl+W")) {
                 done = true;
             }
             ImGui::EndMenu();
@@ -85,8 +87,7 @@ int main(int, char**)
     ::SetProcessDPIAware();
 #endif
 
-    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_GAMECONTROLLER) != 0)
-    {
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_GAMECONTROLLER) != 0) {
         printf("Error: %s\n", SDL_GetError());
         return -1;
     }
@@ -95,6 +96,8 @@ int main(int, char**)
 #ifdef SDL_HINT_IME_SHOW_UI
     SDL_SetHint(SDL_HINT_IME_SHOW_UI, "1");
 #endif
+
+    NFD_Init();
 
     // Create window with SDL_Renderer graphics context
     float main_scale = ImGui_ImplSDL2_GetContentScaleForDisplay(0);
@@ -141,7 +144,8 @@ int main(int, char**)
     ResourceManager::Init(renderer);
     LoadAllImageResources();
 
-    DeviceInit("/home/binaryfox0/proj/toshiba-t100-pc/images/TDISKBASIC.img");
+    DeviceResources::LoadDiskBasic("/home/binaryfox0/proj/toshiba-t100-pc/images/TDISKBASIC.img");
+
     // Our state
     bool show_demo_window = true;
     bool show_another_window = false;
@@ -170,16 +174,11 @@ int main(int, char**)
         ImGui_ImplSDL2_NewFrame();
         ImGui::NewFrame();
 
-        DrawMenuBar();
-
         for(int i = 0; i < sizeof(gui_elements) / sizeof(gui_elements[0]); i++)
             if(*(gui_elements[i].show))
                 gui_elements[i].handle();
 
-        // 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
-        if (show_demo_window)
-            ImGui::ShowDemoWindow(&show_demo_window);
-
+        DrawMenuBar();
 
         // Rendering
         ImGui::Render();
@@ -191,9 +190,13 @@ int main(int, char**)
     }
 
     // Cleanup
+    DeviceResources::FreeResources();
+
     ImGui_ImplSDLRenderer2_Shutdown();
     ImGui_ImplSDL2_Shutdown();
     ImGui::DestroyContext();
+
+    NFD_Quit();
 
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);

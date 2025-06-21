@@ -4,9 +4,15 @@
 #include <string>
 #include <chrono>
 
+#include <stdio.h>
 #include <stdint.h>
 
 #include "imgui.h"
+#include "nfd.h"
+
+#include "ResourceManager.hpp"
+#include "MessageBox.hpp"
+
 
 // Why they make the way to access function so long
 using Clock = std::chrono::high_resolution_clock;
@@ -35,7 +41,32 @@ void ClearEventLog() {
 void DrawEventLog()
 {
     ImGui::SetNextWindowSize(ImVec2(400, 400), ImGuiCond_FirstUseEver);
-    ImGui::Begin("Event Log");
+    ImGui::Begin("Event Log", nullptr, ImGuiWindowFlags_MenuBar);
+    if(ImGui::BeginMenuBar()) {
+        if(ImGui::BeginMenu("File"))
+        {
+            if(ImGui::MenuItem("Save")) {
+                nfdchar_t *outPath = NULL;
+                nfdresult_t result = NFD_SaveDialog(&outPath, 0, 0, 0, 0);
+                if ( result == NFD_OKAY ) {
+                    FILE* file = fopen(outPath, "w");
+                    NFD_FreePathU8(outPath);
+                    fclose(file);
+                }
+                else {
+                    CreateMessageBox("Error", NFD_GetError());
+                }
+            }
+            ImGui::EndMenu();
+        }
+        ImGui::EndMenuBar();
+    }
+    ImageResource &icon = ResourceManager::GetImage("delete_forever.png");
+    if(ImGui::ImageButton("##delete_forever", icon.texture, icon.size)) {
+        events.clear();
+        ResetEventClock();
+    }
+    ImGui::BeginChild("##events", ImVec2(0, 0), ImGuiChildFlags_Borders);
     if(events.empty())
     {
         const char* text = "No event was recorded.";
@@ -50,18 +81,22 @@ void DrawEventLog()
     }
     else {
         bool is_at_bottom = ImGui::GetScrollY() >= ImGui::GetScrollMaxY() - 1.0f;
-        for(const auto& event : events)
-        {
-            uint64_t ms = event.ms;
-            int hours   = static_cast<int>(ms / (1000 * 60 * 60));
-            int minutes = static_cast<int>((ms / (1000 * 60)) % 60);
-            int seconds = static_cast<int>((ms / 1000) % 60);
-            int millis  = static_cast<int>(ms % 10000); // 4-digit precision
+        ImGuiListClipper clipper;
+        clipper.Begin(events.size());
+        while(clipper.Step()) {
+            for(int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++) {
+                uint64_t ms = events[i].ms;
+                int hours   = static_cast<int>(ms / (1000 * 60 * 60));
+                int minutes = static_cast<int>((ms / (1000 * 60)) % 60);
+                int seconds = static_cast<int>((ms / 1000) % 60);
+                int millis  = static_cast<int>(ms % 10000); // 4-digit precision
 
-            ImGui::Text("[%02d:%02d:%02d.%04d]: %s", hours, minutes, seconds, millis, event.content.c_str());
+                ImGui::Text("[%02d:%02d:%02d.%04d]: %s", hours, minutes, seconds, millis, events[i].content.c_str());
+            }
         }
         if(is_at_bottom)
             ImGui::SetScrollHereY(1.0f);
     }
+    ImGui::EndChild();
     ImGui::End();
 }
