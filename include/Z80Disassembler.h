@@ -9,6 +9,8 @@
 extern "C"  {
 #endif
 
+#define Z80_MAX_INSTR_LEN 4
+
 enum {
     NOP, LD, INC, DEC, RLCA, EX, ADD, RRCA,
     DJNZ, RLA, JR, RRA,

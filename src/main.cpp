@@ -19,15 +19,15 @@
 
 #include <nfd.h>
 
-#include "DisassemblerView.hpp"
 #include "MessageBox.hpp"
 #include "ResourceManager.hpp"
 #include "DeviceResources.hpp"
 #include "EventLog.hpp"
-#include "RegistersView.hpp"
-
+#include "DisassemblerView/Main.hpp"
 
 namespace fs = std::filesystem;
+
+bool always_true = true;
 
 bool show_demo = false;
 struct GUIElement {
@@ -36,9 +36,9 @@ struct GUIElement {
 } gui_elements[] = {
     {[](){ImGui::ShowDemoWindow();}, &show_demo},
     {DrawMessageBox, &messagebox_show},
-    {DrawDisassemblerView, &show_disassembler},
+    {DisassemblerView::Draw, &always_true},
     {DrawEventLog, &eventlog_show},
-    {DrawRegistersView, &registersview_show}
+    // {DrawRegistersView, &registersview_show}
 };
 
 void LoadAllImageResources()

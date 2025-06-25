@@ -13,7 +13,7 @@
 #include "Internal.h"
 #include "EventLog.hpp"
 
-#include "DisassemblerView.hpp"
+#include "DisassemblerView/Main.hpp"
 #include "RegistersView.hpp"
 
 #define DISK_TRACK_SIZE  0x1000
@@ -54,7 +54,7 @@ void DeviceResources::LoadDiskBasic(const char* disk_path)
     CPUThread = std::thread(CPUExecutionLoop);
 
     // Processing
-    SetupDisassembler(RAM, IPL_LOAD_ADDRESS, sizeof(RAM));
+    DisassemblerView::Init(RAM, sizeof(RAM), IPL_LOAD_ADDRESS);
     eventlog_show = true;
     registersview_show = true;
 }

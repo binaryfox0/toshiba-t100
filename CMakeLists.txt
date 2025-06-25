@@ -25,7 +25,7 @@ set(IMGUI_SOURCES
     ${IMGUI_BACKENDS}/imgui_impl_sdlrenderer2.cpp
 )
 
-file(GLOB SOURCES src/*.c src/*.cpp)
+file(GLOB_RECURSE SOURCES src/*.c src/*.cpp)
 
 add_executable(ToshibaT100
     ${IMGUI_SOURCES}

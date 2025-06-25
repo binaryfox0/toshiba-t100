@@ -15,15 +15,20 @@
 #   define EXTERN_C_END
 #endif
 
+typedef struct __Vec2
+{
+    int x, y;
+} __Vec2;
+
 #ifdef __cplusplus
 #include <type_traits>
 #include <sstream>
 #include <iomanip>
 
 template <typename T, typename = typename std::enable_if<std::is_unsigned<T>::value>::type>
-INLINE std::string to_hex(T val) {
+INLINE std::string to_hex(T val, bool postfix = false) {
     std::stringstream ss;
-    ss << "0x"
+    ss << (postfix ? "0x" : "")
        << std::hex << std::setw(sizeof(T) * 2)
        << std::uppercase << std::setfill('0')
        << static_cast<unsigned long>(val);  // cast avoids char printing weirdness
