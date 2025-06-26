@@ -8,13 +8,15 @@
 #include <unordered_map>
 #include <chrono>
 
-#include "z80.h"
 
 #include "Internal.h"
 #include "EventLog.hpp"
 
 #include "DisassemblerView/Main.hpp"
 #include "RegistersView.hpp"
+#include "MessageBox.hpp"
+
+#include "z80.h"
 
 #define DISK_TRACK_SIZE  0x1000
 
@@ -37,20 +39,27 @@ void (*DeviceResources::BreakHandle)(uint16_t) = nullptr;
 
 void DeviceResources::LoadDiskBasic(const char* disk_path)
 {
+    // Load IPL
+    std::ifstream file(disk_path, std::ios::binary);
+    for(int i = 0; i < DISK_TRACK_SIZE; i++) {
+        uint8_t byte = 0;
+        file.read((char*)&byte, 1);
+        if(byte != 0) {
+            CreateMessageBox("Error!", "Invalid TDISKBASIC disk");
+            return;
+        }
+    }
     // Reset
     memset(RAM, 0, sizeof(RAM));
     memset(ROM, 0, sizeof(ROM));
-    ResetCPU();
     ROMActive = true;
-
-    // Load IPL
-    std::ifstream file(disk_path, std::ios::binary | std::ios::ate);
-    size_t size = file.tellg();
-    file.seekg(IPL_FILE_OFFSET, std::ios::beg);
+    // file.seekg(IPL_FILE_OFFSET, std::ios::beg);
     file.read(reinterpret_cast<char*>(RAM + IPL_LOAD_ADDRESS), IPL_SIZE);
     file.close();
     
-    // Load CPU
+    StopCPUThread();
+    CPUExit = false;
+    ResetCPU();
     CPUThread = std::thread(CPUExecutionLoop);
 
     // Processing
@@ -59,11 +68,15 @@ void DeviceResources::LoadDiskBasic(const char* disk_path)
     registersview_show = true;
 }
 
-void DeviceResources::FreeResources() {
+void DeviceResources::StopCPUThread() {
     CPUPause = true;
     CPUExit = true;
     if(CPUThread.joinable())
-        CPUThread.join();
+        CPUThread.join();    
+}
+
+void DeviceResources::FreeResources() {
+    StopCPUThread();
 }
 
 void DeviceResources::ResetCPU() {
@@ -98,6 +111,13 @@ void DeviceResources::CPUExecutionLoop()
             while(CPU.cyc - frame_start_cycle < CYCLES_PER_FRAME)
             {
                 if(CPUBreak[CPU.pc]) {
+                    static bool breakbefore = false;
+                    if(breakbefore) {
+                        breakbefore = false;
+                        z80_step(&CPU);
+                        continue;
+                    }
+                    breakbefore = true;
                     CPUPause = true;
                     if(BreakHandle)
                         BreakHandle(CPU.pc);

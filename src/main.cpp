@@ -1,21 +1,26 @@
-#include "DeviceResources.hpp"
 #include <stdio.h>
-#include <SDL.h>
+#include <string.h>
+#include <limits.h>
 
 #include <filesystem>
 
-#ifdef _WIN32
-#include <windows.h>        // SetProcessDPIAware()
+#include "Internal.h"
+#if defined(PLATFORM_LINUX)
+#   include <unistd.h>
+#elif defined(PLATFORM_WINDOWS)
+#   include <windows.h>        // SetProcessDPIAware, GetLastError
+#else
+#   include <mach-o/dyld.h>
 #endif
-
-#if !SDL_VERSION_ATLEAST(2,0,17)
-#error This backend requires SDL 2.0.17+ because of SDL_RenderGeometry() function
-#endif
-
 
 #include "imgui.h"
 #include "imgui_impl_sdl2.h"
 #include "imgui_impl_sdlrenderer2.h"
+
+#include <SDL2/SDL.h>
+#if !SDL_VERSION_ATLEAST(2,0,17)
+#error This backend requires SDL 2.0.17+ because of SDL_RenderGeometry() function
+#endif
 
 #include <nfd.h>
 
@@ -24,6 +29,10 @@
 #include "DeviceResources.hpp"
 #include "EventLog.hpp"
 #include "DisassemblerView/Main.hpp"
+#include "RegistersView.hpp"
+#include "Logging.h"
+#include "DeviceResources.hpp"
+#include "SidePanel.hpp"
 
 namespace fs = std::filesystem;
 
@@ -38,34 +47,108 @@ struct GUIElement {
     {DrawMessageBox, &messagebox_show},
     {DisassemblerView::Draw, &always_true},
     {DrawEventLog, &eventlog_show},
-    // {DrawRegistersView, &registersview_show}
+    {DrawRegistersView, &registersview_show},
+    {DrawSidePanel, &always_true}
 };
+
+bool GetProgramParentDirectory(fs::path& parent_dir)
+{
+#if defined(PLATFORM_LINUX)
+    size_t bufsiz = PATH_MAX;
+    char* buf = 0;
+    while(true) {
+        buf = (char*)malloc(bufsiz);
+        if(!buf) return false;
+        ssize_t len = readlink("/proc/self/exe", buf, bufsiz - 1);
+        if(len == -1) {
+            free(buf);
+            return false;
+        }
+        if(len < bufsiz - 1) {
+            buf[len] = '\0';
+            break;
+        }
+        free(buf);
+        bufsiz *= 2;
+    }
+#elif defined(PLATFORM_WIN32)
+    DWORD bufsiz = PATH_MAX;
+    char* buf = 0;
+    while(true) {
+        buf = (char*)malloc(bufsiz);
+        if(!buf) return false;
+        DWORD len = GetModuleFileNameA(NULL, buf, bufsiz);
+        if(len == 0) {
+            free(buf);
+            return false;
+        }
+        if(len < bufsiz - 1) {
+            break;
+        }
+        free(buf);
+        bufsiz *= 2;
+    }
+#else
+    uint32_t bufsiz = 0;
+    _NSGetExecutablePath(NULL, &bufsiz);
+    char* buf = (char*)malloc(bufsiz);
+    if(!buf) return false;
+    if(_NSGetExecutablePath(buf, &bufsiz) != 0) {
+        free(buf)
+        return false;
+    }
+#endif
+    parent_dir = fs::path(buf).parent_path();
+    free(buf);
+    return true;
+}
 
 void LoadAllImageResources()
 {
-    if(!fs::exists("/home/binaryfox0/proj/toshiba-t100-pc/resources/images"))
-        return;
-    for(const auto& entry: fs::directory_iterator("/home/binaryfox0/proj/toshiba-t100-pc/resources/images"))
-        if(entry.is_regular_file())
-            ResourceManager::LoadImage(entry.path().filename());
+    fs::path path;
+    // based on cwd (current working directory)
+    if(!fs::exists("./resources/images")) {
+        warn("\"resources\" directory not found at cwd. Searching at program directory");
+        fs::path parent_path;
+        if(!GetProgramParentDirectory(parent_path)) {
+            error("unable to retrive program parent directory");
+            return;
+        }
+        path = parent_path / "resources" / "images";
+        if(!fs::exists(path)) {
+            error("\"resources\" directory not found at proram directory");
+            return;
+        }
+    } else { path = "./resources/images"; }
+    for(const auto& entry: fs::directory_iterator(path))
+        if(entry.is_regular_file()) {
+            ResourceManager::LoadImage(entry.path(), entry.path().filename());
+        }
+}
+
+void OpenDisk() {
+    nfdchar_t *outPath = NULL;
+    const nfdu8filteritem_t filters[1] = {{"Disk image", "img"}};
+    nfdresult_t result = NFD_OpenDialog(&outPath, filters, 1, 0);
+        
+    if ( result == NFD_OKAY ) {
+        DeviceResources::LoadDiskBasic(outPath);
+        NFD_FreePathU8(outPath);
+    }
+    else if(result != NFD_CANCEL) {
+        CreateMessageBox("Error", NFD_GetError());
+    }
 }
 
 bool done = false;
 void DrawMenuBar()
 {
+    if(ImGui::IsKeyDown(ImGuiMod_Ctrl) && ImGui::IsKeyPressed(ImGuiKey_O, false))
+        OpenDisk();
     if (ImGui::BeginMainMenuBar()) {
         if (ImGui::BeginMenu("File")) {
             if (ImGui::MenuItem("Open", "Ctrl-O")) {
-                nfdchar_t *outPath = NULL;
-                nfdresult_t result = NFD_OpenDialog(&outPath, 0, 0, 0);
-                    
-                if ( result == NFD_OKAY ) {
-                    DeviceResources::LoadDiskBasic(outPath);
-                    NFD_FreePathU8(outPath);
-                }
-                else {
-                    CreateMessageBox("Error", NFD_GetError());
-                }
+                OpenDisk();
             }
             if(ImGui::MenuItem(show_demo ? "Close ImGui Demo" : "Show ImGui Demo")) {
                 show_demo = !show_demo;
@@ -79,7 +162,6 @@ void DrawMenuBar()
     }
 }
 
-// Main code
 int main(int, char**)
 {
     // Setup SDL
@@ -88,38 +170,46 @@ int main(int, char**)
 #endif
 
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_GAMECONTROLLER) != 0) {
-        printf("Error: %s\n", SDL_GetError());
-        return -1;
+        error("failed to initialize the following component: SDL");
+        return 1;
     }
+    info("SDL was initialized successfully");
 
-    // From 2.0.18: Enable native IME.
 #ifdef SDL_HINT_IME_SHOW_UI
     SDL_SetHint(SDL_HINT_IME_SHOW_UI, "1");
 #endif
 
-    NFD_Init();
+    if(NFD_Init() != NFD_OKAY) {
+        error("failed to initialize the following component: nativefiledialog-extended/NFD");
+        SDL_Quit();
+    }
+    info("NFD was initialized successfully");
 
     // Create window with SDL_Renderer graphics context
     float main_scale = ImGui_ImplSDL2_GetContentScaleForDisplay(0);
     SDL_WindowFlags window_flags = (SDL_WindowFlags)(SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
-    SDL_Window* window = SDL_CreateWindow("Dear ImGui SDL2+SDL_Renderer example", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, (int)(1280 * main_scale), (int)(720 * main_scale), window_flags);
-    if (window == nullptr)
-    {
-        printf("Error: SDL_CreateWindow(): %s\n", SDL_GetError());
+    SDL_Window* window = SDL_CreateWindow(
+        "ToshibaT100 TDISKBASIC emulator", 
+        SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 
+        (int)(1024 * main_scale), (int)(576 * main_scale), 
+        window_flags);
+    if (window == nullptr) {
+        error("failed to create SDL_Window");
+        SDL_Quit();
         return -1;
     }
+    info("create SDL_Window successfully");
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_PRESENTVSYNC | SDL_RENDERER_ACCELERATED);
-    if (renderer == nullptr)
-    {
-        SDL_Log("Error creating SDL_Renderer!");
+    if (renderer == nullptr) {
+        error("failed to create SDL_Renderer for SDL_Window");
+        SDL_DestroyWindow(window);
+        SDL_Quit();
         return -1;
     }
+    info("create SDL_Renderer successfully");
+    LogSDLRendererInfo(renderer);
 
     
-    //SDL_RendererInfo info;
-    //SDL_GetRendererInfo(renderer, &info);
-    //SDL_Log("Current SDL_Renderer: %s", info.name);
-
     // Setup Dear ImGui context
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -139,6 +229,8 @@ int main(int, char**)
     // Setup Platform/Renderer backends
     ImGui_ImplSDL2_InitForSDLRenderer(window, renderer);
     ImGui_ImplSDLRenderer2_Init(renderer);
+
+    info("ImGui was initialized successfully, version: %s", IMGUI_VERSION);
 
     ResetEventClock();
     ResourceManager::Init(renderer);
@@ -165,7 +257,7 @@ int main(int, char**)
         }
         if (SDL_GetWindowFlags(window) & SDL_WINDOW_MINIMIZED)
         {
-            SDL_Delay(10);
+            SDL_Delay(1000 / 60);
             continue;
         }
 

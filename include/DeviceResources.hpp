@@ -27,6 +27,7 @@ public:
 
     static void LoadDiskBasic(const char* disk_path);
 
+    static void StopCPUThread();
     static void FreeResources();
 
     static void ResetCPU();

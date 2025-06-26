@@ -25,6 +25,17 @@ set(IMGUI_SOURCES
     ${IMGUI_BACKENDS}/imgui_impl_sdlrenderer2.cpp
 )
 
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    add_compile_definitions(BUILD_DEB)
+elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
+    add_compile_definitions(BUILD_REL)
+elseif(CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
+    add_compile_definitions(BUILD_RELWITHDEBINFO)
+elseif(CMAKE_BUILD_TYPE STREQUAL "MinSizeRel")
+    add_compile_definitions(BUILD_MINSIZEREL)
+endif()
+
+
 file(GLOB_RECURSE SOURCES src/*.c src/*.cpp)
 
 add_executable(ToshibaT100

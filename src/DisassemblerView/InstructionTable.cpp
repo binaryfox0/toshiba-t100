@@ -1,6 +1,7 @@
 #include "DisassemblerView/InstructionTable.hpp"
 
 #include <vector>
+#include <algorithm>
 
 #include "DisassemblerView/Main.hpp"
 #include "imgui.h"
@@ -11,6 +12,8 @@
 #include "DisassemblerView/Core.hpp"
 #include "UIHelpers.hpp"
 #include "DeviceResources.hpp"
+
+#define HIGHLIGHT_DUR 2.5f //2.5s
 
 static const auto& parsed              = DisassemblerView::GetDisassemblerParsedGeneral();
 static const auto& parsed_jump_address = DisassemblerView::GetDisassemblerParsedJumpAddress();
@@ -55,37 +58,11 @@ bool FindPreviousInstruction(uint16_t& address)
     return false;
 }
 
-void UpdateDisplayRange(uint16_t address, bool push)
-{
-    while (parsed.count(address) == 0 && address > bytes_range.x)
-        address--;
-    if(!history.empty())
-        if(in_range(history.back(), display_addr_end, address))
-            return;
-    uint16_t display_addr_start = address;
-    while (FindPreviousInstruction(display_addr_start)) {}
-
-    if (push)
-        history.push_back(display_addr_start);
-
-    display_addr_end = display_addr_start;
-    display_ranges.clear();
-    while (true)
-    {
-        auto it = parsed.find(display_addr_end);
-        if (it == parsed.end())
-            break;
-        display_ranges.push_back({false, display_addr_end});
-        if(it->second.type == RET)
-            display_ranges.push_back({true});
-        display_addr_end += it->second.size;
-    }
-}
 
 INLINE void AddressButtonPressed(const uint16_t address)
 {
     uint16_t new_address = parsed_jump_address.at(address);
-    UpdateDisplayRange(new_address, true);
+    DisassemblerView::UpdateDisplayRange(new_address, true);
     focus_addr = highlight_addr = new_address;
     highlight_start = ImGui::GetTime();
 }
@@ -104,7 +81,7 @@ void DrawDisassembleRow(const DisassembleInstr& row, bool is_pc)
     ImGui::TableSetColumnIndex(0);
 
 
-    ImGui::Text("%04X", row.address);
+    ImGui::Text("%04X:", row.address);
     ImGui::TableNextColumn();
 
     char tmp[12] = {0};
@@ -147,14 +124,46 @@ INLINE void ScrollSync()
 
 namespace DisassemblerView
 {
-void InitInstructionTable()
+static bool stop_access = false; // to prevent out-of-bound element when the address doesn't in current display ranges
+void UpdateDisplayRange(uint16_t address, bool push)
 {
-    UpdateDisplayRange(bytes_range.x, true);
+    while (parsed.count(address) == 0 && address > bytes_range.x)
+        address--;
+    if(!history.empty())
+        if(in_range(history.back(), display_addr_end, address))
+            return;
+    uint16_t display_addr_start = address;
+    while (FindPreviousInstruction(display_addr_start)) {}
 
+    if (push)
+        history.push_back(display_addr_start);
+
+    display_addr_end = display_addr_start;
+    display_ranges.clear();
+    while (true)
+    {
+        auto it = parsed.find(display_addr_end);
+        if (it == parsed.end())
+            break;
+        display_ranges.push_back({false, display_addr_end});
+        if(it->second.type == RET)
+            display_ranges.push_back({true});
+        display_addr_end += it->second.size;
+    }
+    stop_access = true;
+}
+
+void InitInstructionTable() {
+    UpdateDisplayRange(bytes_range.x, true);
 }
 
 void DrawInstructionTable()
 {
+    if (highlight_addr != -1) {
+        if (ImGui::GetTime() - highlight_start > HIGHLIGHT_DUR)
+            highlight_addr = -1;
+    }
+
     ImGui::BeginChild("##instruction_view");
     ScrollSync();
     if(parsed.empty())
@@ -169,27 +178,23 @@ void DrawInstructionTable()
         ));
         ImGui::TextUnformatted(text);
     } else {
-        if (ImGui::BeginTable("##instr_view", 4, ImGuiTableFlags_Borders))
+        if (ImGui::BeginTable("##instr_view", 4))
         {
-            // ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_TableRowBg));
-            // ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::GetStyleColorVec4(ImGuiCol_TableRowBg));
-            // ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImGui::GetStyleColorVec4(ImGuiCol_TableRowBg));
-            ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, ImGui::GetStyle().FramePadding.y));
-
-            // ImGui::TableSetupColumn("##addresses_col", ImGuiTableColumnFlags_WidthStretch);
-            // ImGui::TableSetupColumn("##instructions_col", ImGuiTableColumnFlags_WidthStretch);
-            // ImGui::TableSetupColumn("##operands_col", ImGuiTableColumnFlags_WidthStretch);
+            ImGui::TableSetupColumn("##address_col", ImGuiTableColumnFlags_WidthFixed);
+            ImGui::TableSetupColumn("##bytes_col");
+            ImGui::TableSetupColumn("##instrs_col");
+            ImGui::TableSetupColumn("##operands_col");
 
             ImGuiListClipper clipper;
             clipper.Begin(display_ranges.size());
 
-            // if (focus_addr != -1) {
-                // uint16_t tmp = history.back();
-                // auto it = std::find_if(display_ranges.begin(), display_ranges.end(), [](const display_instr& i){ return i.address == focus_addr; });
-                // if(it != display_ranges.end())
-                    // ImGui::SetScrollY(ImGui::GetTextLineHeightWithSpacing() * std::distance(display_ranges.begin(), it));
-                // focus_addr = -1;
-            // }
+            if (focus_addr != -1) {
+                uint16_t tmp = history.back();
+                auto it = std::find_if(display_ranges.begin(), display_ranges.end(), [](const display_instr& i){ return i.address == focus_addr; });
+                if(it != display_ranges.end())
+                    ImGui::SetScrollY(ImGui::GetTextLineHeightWithSpacing() * std::distance(display_ranges.begin(), it));
+                focus_addr = -1;
+            }
 
             while (clipper.Step())
             {
@@ -203,21 +208,36 @@ void DrawInstructionTable()
                     }
                     bool is_pc = _instr.address == DeviceResources::CPU.pc;
                     const DisassembleInstr& instr = parsed.at(_instr.address);
-
                     DrawDisassembleRow(instr, is_pc);
+
+                    if(stop_access) {
+                        stop_access = false;
+                        break;
+                    }
                 }
             }
             clipper.End();
 
-            // ImGui::PopStyleColor(3);
-            ImGui::PopStyleVar();
             ImGui::EndTable();
         }
     }
     ImGui::EndChild();
 }
 
+void FocusAddress(uint16_t address, bool highlight)
+{
+    focus_addr = address;
+    if(highlight) {
+        highlight_addr = address;
+        highlight_start = ImGui::GetTime();
+    }
+}
+
 const std::vector<display_instr>& GetInstructionDisplayRange() {
     return display_ranges;
+}
+
+std::vector<uint16_t>& GetDisassemblerViewHistory() {
+    return history;
 }
 };

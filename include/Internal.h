@@ -15,6 +15,47 @@
 #   define EXTERN_C_END
 #endif
 
+
+// OS stuff
+#ifdef __linux__
+#   define PLATFORM_LINUX 
+#elif defined(_WIN32)
+#   define PLATFORM_WIN32
+#   error You can comment this line to test on Windows. I don't have it anyway, very bloated stuff
+#elif defined(__APPLE__) || defined(__MACH__)
+#   define PLATFORM_MACOS
+#   error Why?why?why are you so rich? I need money, but I don't have PayPal, bruh.
+#elif defined(__ANDROID__)
+#   error You have fucking nothing to do, don't you?
+#else
+#   error Unsupported platform, you can make a pull request to fix this
+#endif
+
+#ifdef PLATFORM_WIN32
+#   include <sdkddkver.h>
+// Source:
+// - https://learn.microsoft.com/en-us/windows/win32/winprog/using-the-windows-headers?redirectedfrom=MSDN#macros-for-conditional-declarations
+// - https://en.wikipedia.org/wiki/ANSI_escape_code#DOS_and_Windows 
+#   if defined(NTDDI_VERSION) && (NTDDI_VERSION >= NTDDI_WIN10_TH2)
+#       define ANSIES(str) str
+#   endif
+#else
+#   define ANSIES(str) str
+#endif
+
+#if defined(BUILD_DEB) || defined(BUILD_RELWITHDEBINFO)
+#   define BUILD_DEBUG
+#endif
+
+#if defined(BUILD_DEB) || defined(BUILD_RELWITHDEBINFO)
+#   define info(fmt, ...) printf(ANSIES("\x1b[1;34m") "info" ANSIES("\x1b[0m") ": " fmt "\n", ##__VA_ARGS__)
+#else
+#   define info(fmt, ...)
+#endif
+
+#define warn(fmt, ...) printf(ANSIES("\x1b[1;33m") "warn" ANSIES("\x1b[0m") ": " fmt "\n", ##__VA_ARGS__)
+#define error(fmt, ...) fprintf(stderr, ANSIES("\x1b[1;31m") "error" ANSIES("\x1b[0m") ": " fmt "\n", ##__VA_ARGS__)
+
 typedef struct __Vec2
 {
     int x, y;
@@ -26,7 +67,7 @@ typedef struct __Vec2
 #include <iomanip>
 
 template <typename T, typename = typename std::enable_if<std::is_unsigned<T>::value>::type>
-INLINE std::string to_hex(T val, bool postfix = false) {
+INLINE std::string to_hex(T val, bool postfix = true) {
     std::stringstream ss;
     ss << (postfix ? "0x" : "")
        << std::hex << std::setw(sizeof(T) * 2)

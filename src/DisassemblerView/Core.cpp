@@ -12,6 +12,7 @@
 
 // C++ header
 #include "EventLog.hpp"
+#include "DeviceResources.hpp"
 
 static const uint8_t *mem = 0;
 static __Vec2 bytes_range = {0};
@@ -101,6 +102,12 @@ void Disassemble(uint16_t address)
             AddNewEvent("Disassembler: RET to " + to_hex(address));
             continue;
         }
+
+        // handle io
+        case IN:
+        case OUT:
+            DeviceResources::CPUBreak[address] = true;
+            break;
         }
 
         address += len;

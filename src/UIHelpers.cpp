@@ -33,14 +33,16 @@ bool DrawInactiveableButton(
 }
 
 static std::unordered_map<std::string, bool> highlighted_before;
-bool DrawHyperlinkButton(const char* label, const bool specified_hovered_color, const ImU32 hovered_color)
+bool DrawHyperlinkButton(const char* label)
 {
-    bool is_hovered = specified_hovered_color && highlighted_before.count(label) > 0;
+    if(highlighted_before.size() > 16)
+        highlighted_before.clear();
+    bool is_hovered = highlighted_before[label];
     if(is_hovered)
-        ImGui::PushStyleColor(ImGuiCol_Text, hovered_color);
+        ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(62, 130, 210, 255));
     bool pressed = ImGui::SmallButton(label);
-    if(is_hovered)  
-        ImGui::PopStyleColor();
+
+    highlighted_before[label] = ImGui::IsItemHovered();
 
     // Fake underlined
     ImVec2 text_size = ImGui::CalcTextSize(label, 0, true);
@@ -61,6 +63,8 @@ bool DrawHyperlinkButton(const char* label, const bool specified_hovered_color, 
         ImVec2(text_start_x + text_size.x, underline_y),
         ImGui::GetColorU32(ImGuiCol_Text)
     );
+    if(is_hovered)
+        ImGui::PopStyleColor();
 
     return pressed;
 }

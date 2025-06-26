@@ -4,8 +4,8 @@
 #include "imgui.h"
 
 bool messagebox_show = 0;
-const char* messagebox_title = 0;
-const char* messagebox_content = 0;
+static std::string messagebox_title;
+static std::string messagebox_content;
 
 
 void CreateMessageBox(const char* title, const char* content) {
@@ -16,7 +16,7 @@ void CreateMessageBox(const char* title, const char* content) {
 void DrawMessageBox()
 {
     if (messagebox_show)
-        ImGui::OpenPopup(messagebox_title);  // only triggers once
+        ImGui::OpenPopup(messagebox_title.c_str());  // only triggers once
 
     // Set a larger default size
     const ImVec2 popup_size = ImVec2(500, 200);
@@ -26,9 +26,9 @@ void DrawMessageBox()
     ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
     ImGui::SetNextWindowSize(popup_size, ImGuiCond_Appearing);
 
-    if (ImGui::BeginPopupModal(messagebox_title, nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoResize)) {
+    if (ImGui::BeginPopupModal(messagebox_title.c_str(), nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoResize)) {
         ImGui::Spacing();
-        ImGui::TextWrapped("%s", messagebox_content);
+        ImGui::TextWrapped("%s", messagebox_content.c_str());
         ImGui::Spacing();
         ImGui::Spacing();
         ImGui::Spacing();

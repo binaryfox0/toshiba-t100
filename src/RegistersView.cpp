@@ -23,7 +23,7 @@ INLINE uint8_t GenerateFlagByte() {
 }
 void DrawRegistersView()
 {
-    ImGui::SetNextWindowSize(ImVec2(400, 400), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(314, 460), ImGuiCond_FirstUseEver);
     ImGui::Begin("Registers");
 
     if (ImGui::BeginTable("##registers_view", 2, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_Borders | ImGuiTableFlags_NoBordersInBody))

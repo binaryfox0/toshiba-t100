@@ -1,7 +1,6 @@
 #ifndef RESOURCE_MANAGER_HPP
 #define RESOURCE_MANAGER_HPP
 
-#include <SDL_render.h>
 #include <string>
 #include <unordered_map>
 #include <stdint.h> // for uint64_t aka ImTextureID
@@ -51,7 +50,7 @@ public:
 class ResourceManager {
 public:
     static void Init(SDL_Renderer* renderer);
-    static void LoadImage(const std::string& name);
+    static void LoadImage(const std::string& path, const std::string& name);
     static ImageResource& GetImage(const std::string& name);
 
 private:

@@ -10,6 +10,6 @@ bool DrawInactiveableButton(
     const bool image_button, const bool active
 );
 
-bool DrawHyperlinkButton(const char* label, const bool specified_hovered_color = false, const ImU32 hovered_color = IM_COL32(0, 0, 0, 0));
+bool DrawHyperlinkButton(const char* label);
 
 #endif

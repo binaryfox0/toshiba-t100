@@ -1,11 +1,12 @@
 #include "ResourceManager.hpp"
-#include <SDL_render.h>
-#include <SDL_surface.h>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
 #include <SDL2/SDL.h>
+
+#include "Internal.h"
+#include "Logging.h"
 
 SDL_Renderer* ResourceManager::s_Renderer = nullptr;
 std::unordered_map<std::string, ImageResource> ResourceManager::s_Images = {};
@@ -14,13 +15,12 @@ void ResourceManager::Init(SDL_Renderer *renderer) {
     s_Renderer = renderer;
 }
 
-void ResourceManager::LoadImage(const std::string &name)
+void ResourceManager::LoadImage(const std::string& path, const std::string &name)
 {
     int width, height, channels;
-    std::string constructed = "/home/binaryfox0/proj/toshiba-t100-pc/resources/images/" + name; // relative path for portability
-    stbi_uc* image_data = stbi_load(constructed.c_str(), &width, &height, &channels, 4); // force RGBA
+    stbi_uc* image_data = stbi_load(path.c_str(), &width, &height, &channels, 4); // force RGBA
     if (!image_data) {
-        fprintf(stderr, "ToshibaT100: error: failed to load image '%s': %s\n", name.c_str(), stbi_failure_reason());
+        warn("ToshibaT100: error: failed to load image '%s': %s\n", name.c_str(), stbi_failure_reason());
         return;
     }
 
@@ -36,14 +36,14 @@ void ResourceManager::LoadImage(const std::string &name)
     );
 
     if (!surface) {
-        fprintf(stderr, "SDL_CreateRGBSurfaceFrom failed: %s\n", SDL_GetError());
+        warn("SDL_CreateRGBSurfaceFrom failed: %s\n", SDL_GetError());
         stbi_image_free(image_data);
         return;
     }
 
     SDL_Texture* tex = SDL_CreateTextureFromSurface(s_Renderer, surface);
     if (!tex) {
-        fprintf(stderr, "SDL_CreateTextureFromSurface failed: %s\n", SDL_GetError());
+        warn("SDL_CreateTextureFromSurface failed: %s\n", SDL_GetError());
         SDL_FreeSurface(surface);
         stbi_image_free(image_data);
         return;
@@ -53,8 +53,13 @@ void ResourceManager::LoadImage(const std::string &name)
 
     SDL_FreeSurface(surface);
     stbi_image_free(image_data);
+    info("image resources: \"%s\" was loaded successfully", path.c_str());
 }
 
+static ImageResource empty_image_resource = ImageResource();
 ImageResource& ResourceManager::GetImage(const std::string &name) {
-    return s_Images.at(name);
+    if(s_Images.count(name) > 0)
+        return s_Images[name];
+    warn("trying to load non-existent image resource: %s", name.c_str());
+    return empty_image_resource;
 }
