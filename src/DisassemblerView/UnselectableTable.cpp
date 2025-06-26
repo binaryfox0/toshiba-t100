@@ -2,7 +2,6 @@
 
 #include <cmath>
 
-
 #include "DisassemblerView/Main.hpp"
 #include "imgui.h"
 
@@ -16,17 +15,31 @@ void DrawBreakpointButton(uint16_t address, ImDrawList* draw_list) {
     char label[24] = {0};
     snprintf(label, sizeof(label), "-##break_%04X", address);
 
-    bool &breakpoint = DeviceResources::CPUBreak[address];
+    bool breakpoint = false;
+    bool bp_exist = DeviceResources::CPUBreak.count(address);
+    if(bp_exist)
+        breakpoint = DeviceResources::CPUBreak[address];
     ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_Button));
     if (ImGui::SmallButton(label)) {
-        breakpoint = !breakpoint;
+        if(bp_exist && breakpoint)
+            DeviceResources::CPUBreak.erase(address);
+        else {
+            DeviceResources::CPUBreak[address] = true;
+            bp_exist = true;
+            breakpoint = true;
+        }
     }
     ImGui::PopStyleColor();
 
-    if (ImGui::IsItemHovered() && !breakpoint) {
+    if (ImGui::IsItemHovered() && !bp_exist) {
+        // non-existent, color: #6e1b13
         DisassemblerView::DrawBreakpointCircle(draw_list, IM_COL32(110, 27, 19, 255));
-    } else if(breakpoint)
-        DisassemblerView::DrawBreakpointCircle(draw_list, IM_COL32(229, 20, 0, 255));
+    } else if(bp_exist) {
+        if(breakpoint) // color: rgb(229, 20, 0)
+            DisassemblerView::DrawBreakpointCircle(draw_list, DisassemblerView::breakpoint_activate);
+        else // color: #848484
+            DisassemblerView::DrawBreakpointCircle(draw_list, DisassemblerView::breakpoint_disabled);
+    }
 }
 
 static int rows_count = 0;

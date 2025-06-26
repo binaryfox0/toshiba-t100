@@ -32,19 +32,26 @@ bool DrawInactiveableButton(
     return pressed;
 }
 
+// I don't use ImGui::TextLink here because it don't have thing changed color from white (unhovered) to blue (hovered)
 static std::unordered_map<std::string, bool> highlighted_before;
 bool DrawHyperlinkButton(const char* label)
 {
     if(highlighted_before.size() > 16)
         highlighted_before.clear();
-    bool is_hovered = highlighted_before[label];
+    bool is_hovered = false;
+    bool is_existed = highlighted_before.count(label);
+    if(is_existed)
+        is_hovered = highlighted_before[label];
     if(is_hovered)
         ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(62, 130, 210, 255));
     bool pressed = ImGui::SmallButton(label);
 
-    highlighted_before[label] = ImGui::IsItemHovered();
+    bool is_hovered_imgui = ImGui::IsItemHovered();
+    if(is_existed || is_hovered_imgui) {
+        ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+        highlighted_before[label] = is_hovered_imgui;
+    }
 
-    // Fake underlined
     ImVec2 text_size = ImGui::CalcTextSize(label, 0, true);
 
     // Get item rect
