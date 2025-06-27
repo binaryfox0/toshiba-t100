@@ -29,7 +29,6 @@
 #include "DeviceResources.hpp"
 #include "EventLog.hpp"
 #include "DisassemblerView/Main.hpp"
-#include "RegistersView.hpp"
 #include "Logging.h"
 #include "DeviceResources.hpp"
 #include "SidePanel.hpp"
@@ -47,7 +46,6 @@ struct GUIElement {
     {DrawMessageBox, &messagebox_show},
     {DisassemblerView::Draw, &always_true},
     {DrawEventLog, &eventlog_show},
-    {DrawRegistersView, &registersview_show},
     {DrawSidePanel, &always_true}
 };
 
@@ -266,6 +264,14 @@ int main(int, char**)
         ImGui_ImplSDL2_NewFrame();
         ImGui::NewFrame();
 
+        static ImVec2 last_size = ImVec2(0.0f, 0.0f);
+        ImVec2 current_size = ImGui::GetMainViewport()->Size;
+        if(current_size.x != last_size.x || current_size.y != last_size.y) {
+            info("window size changed");
+            ImVec2 real_size = ImVec2(current_size.x, current_size.y - ImGui::GetFrameHeight());
+            UpdateSidePanel(real_size);
+            last_size = current_size;
+        }
         for(int i = 0; i < sizeof(gui_elements) / sizeof(gui_elements[0]); i++)
             if(*(gui_elements[i].show))
                 gui_elements[i].handle();

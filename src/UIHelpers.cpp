@@ -48,8 +48,9 @@ bool DrawHyperlinkButton(const char* label)
 
     bool is_hovered_imgui = ImGui::IsItemHovered();
     if(is_existed || is_hovered_imgui) {
-        ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
         highlighted_before[label] = is_hovered_imgui;
+        if(is_hovered_imgui)
+            ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);        
     }
 
     ImVec2 text_size = ImGui::CalcTextSize(label, 0, true);

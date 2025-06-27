@@ -13,7 +13,6 @@
 #include "EventLog.hpp"
 
 #include "DisassemblerView/Main.hpp"
-#include "RegistersView.hpp"
 #include "MessageBox.hpp"
 
 #include "z80.h"
@@ -65,7 +64,6 @@ void DeviceResources::LoadDiskBasic(const char* disk_path)
     // Processing
     DisassemblerView::Init(RAM, sizeof(RAM), IPL_LOAD_ADDRESS);
     eventlog_show = true;
-    registersview_show = true;
 }
 
 void DeviceResources::StopCPUThread() {
@@ -110,18 +108,21 @@ void DeviceResources::CPUExecutionLoop()
             unsigned long frame_start_cycle = CPU.cyc;
             while(CPU.cyc - frame_start_cycle < CYCLES_PER_FRAME)
             {
-                if(CPUBreak[CPU.pc]) {
-                    static bool breakbefore = false;
-                    if(breakbefore) {
-                        breakbefore = false;
-                        z80_step(&CPU);
-                        continue;
+                if(CPUBreak.count(CPU.pc)) {
+                    if(CPUBreak[CPU.pc])
+                    {
+                        static bool breakbefore = false;
+                        if(breakbefore) {
+                            breakbefore = false;
+                            z80_step(&CPU);
+                            continue;
+                        }
+                        breakbefore = true;
+                        CPUPause = true;
+                        if(BreakHandle)
+                            BreakHandle(CPU.pc);
+                        break;
                     }
-                    breakbefore = true;
-                    CPUPause = true;
-                    if(BreakHandle)
-                        BreakHandle(CPU.pc);
-                    break;
                 }
                 z80_step(&CPU);
             }
