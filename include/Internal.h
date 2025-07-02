@@ -56,6 +56,8 @@
 #define warn(fmt, ...) printf(ANSIES("\x1b[1;33m") "warn" ANSIES("\x1b[0m") ": " fmt "\n", ##__VA_ARGS__)
 #define error(fmt, ...) fprintf(stderr, ANSIES("\x1b[1;31m") "error" ANSIES("\x1b[0m") ": " fmt "\n", ##__VA_ARGS__)
 
+
+
 typedef struct __Vec2
 {
     int x, y;

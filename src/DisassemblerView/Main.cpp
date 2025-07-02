@@ -34,6 +34,14 @@ INLINE void UpdatePauseResumeButtonImage() {
     else pauseresume_active_img = "pause_normal.png";
 }
 
+INLINE void TooltipWrapper(const char* text) {
+    if(ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImGuiStyle().WindowPadding);
+        ImGui::SetTooltip("%s", text);
+        ImGui::PopStyleVar();
+    }
+}
+
 void DrawToolbar()
 {
     if(DrawInactiveableButton(
@@ -43,15 +51,15 @@ void DrawToolbar()
         DisassemblerView::UpdateDisplayRange(history[history.size() - 2], false);
         history.pop_back();
     }
-    if(ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
-        ImGui::SetTooltip("Go to previous location (Esc)");
+    TooltipWrapper("Go to previous location (Esc)");
     ImGui::SameLine();
+
     static const char* onoff_active_img = "play_arrow_normal.png";
-    static bool cpu_start = false;
     if(DrawInactiveableButton(onoff_active_img, "", true, true) ||
         ImGui::Shortcut(ImGuiKey_F5)
     ) {
-        if((cpu_start = !cpu_start)) {
+        DeviceResources::MachineStarted = !DeviceResources::MachineStarted;
+        if(DeviceResources::MachineStarted) {
             onoff_active_img = "stop_normal.png";
             AddNewEvent("Machine started!");
         } else {
@@ -61,21 +69,23 @@ void DrawToolbar()
             AddNewEvent("Machine reset!");
         }
     }
-    if(ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
-        ImGui::SetTooltip(cpu_start ? "Stop machine (F5)" : "Start machine (F5)");
+    TooltipWrapper(DeviceResources::MachineStarted ? "Stop machine (F5)" : "Start machine (F5)");
     ImGui::SameLine();
 
-    if(DrawInactiveableButton(pauseresume_active_img, "resume_grayed.png", true, cpu_start) ||
+    if(DrawInactiveableButton(pauseresume_active_img, "resume_grayed.png", 
+        true, DeviceResources::MachineStarted
+    ) ||
         ImGui::Shortcut(ImGuiKey_F8)
     ) {
         DeviceResources::CPUPause = !DeviceResources::CPUPause;
         UpdatePauseResumeButtonImage();
     }
-    if(ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
-        ImGui::SetTooltip(DeviceResources::CPUPause ? "Resume machine (F8)" : "Pause machine (F8)");
+    TooltipWrapper(DeviceResources::CPUPause ? "Resume machine (F8)" : "Pause machine (F8)");
     ImGui::SameLine();
 
-    if(DrawInactiveableButton("step_into_normal.png", "step_into_grayed.png", true, cpu_start && DeviceResources::CPUPause) ||
+    if(DrawInactiveableButton("step_into_normal.png", "step_into_grayed.png", 
+        true, DeviceResources::MachineStarted && DeviceResources::CPUPause
+    ) ||
         ImGui::Shortcut(ImGuiKey_F11)
     ) {
         z80& z80_cpu = DeviceResources::CPU;
@@ -93,19 +103,20 @@ void DrawToolbar()
             }
         }
     }
-    if(ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
-        ImGui::SetTooltip("Step Into (F11)");
+    TooltipWrapper("Step Into (F11)");
     ImGui::SameLine();
 
-    static char str[5] = "";
+    static char str[7] = "";
     if([&]() -> bool {
         ImageResource& img = ResourceManager::GetImage("jump_to_element.png");
         if(ImGui::ImageButton("##jumptoelement", img.texture, img.size))
             return true;
+        TooltipWrapper("Go to Address");
         ImGui::SameLine();
+
         ResizeCheck();
         ImGui::SetNextItemWidth(text_input_size);
-        if(ImGui::InputTextWithHint("##address", "<hex address>", str, sizeof(str), 
+        if(ImGui::InputTextWithHint("##address", "0x????", str, sizeof(str), 
         ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_CharsHexadecimal))
             return true;
         return false;
@@ -131,14 +142,14 @@ void Init(const uint8_t* disassembler_memory, const uint32_t size, const uint16_
     DeviceResources::BreakHandle = BreakpointHandle;
 }
 
-void Draw()
+void Draw(const float size, uint8_t*)
 {
-    ImGui::SetNextWindowSize(ImVec2(400, 400), ImGuiCond_FirstUseEver);
-    ImGui::Begin("Disassembler");
+    // ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2());
+    ImGui::BeginChild("Disassembler", {size, 0}, ImGuiChildFlags_Borders);
 
     DrawToolbar();
 
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+    // ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
     ImVec4 table_bg_col = ImGui::GetStyleColorVec4(ImGuiCol_TableRowBg); // making button invisible
     ImGui::PushStyleColor(ImGuiCol_Button, table_bg_col);
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, table_bg_col);
@@ -151,8 +162,9 @@ void Draw()
     ImGui::EndChild();
 
     ImGui::PopStyleColor(3);
-    ImGui::PopStyleVar();
-    ImGui::End();
+    // ImGui::PopStyleVar();
+    ImGui::EndChild();
+    // ImGui::PopStyleVar();
 }
 
 float& GetScrollSynced() {

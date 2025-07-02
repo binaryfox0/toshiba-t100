@@ -23,18 +23,18 @@
 #define IPL_LOAD_ADDRESS 0xD000
 #define IPL_SIZE         DISK_TRACK_SIZE * 8 - DISK_TRACK_SIZE
 
+bool DeviceResources::MachineStarted = false;
+
 uint8_t DeviceResources::RAM[0x10000] = {0};
 uint8_t DeviceResources::ROM[0x8000]  = {0};
 bool    DeviceResources::ROMActive    = true;
+
 z80     DeviceResources::CPU          = {};
+std::thread DeviceResources::CPUThread;
+std::unordered_map<uint16_t, bool> DeviceResources::CPUBreak = {};
+void (*DeviceResources::BreakHandle)(uint16_t) = nullptr;
 std::atomic<bool> DeviceResources::CPUPause     = true;
 std::atomic<bool> DeviceResources::CPUExit      = false;
-std::thread DeviceResources::CPUThread;
-
-std::unordered_map<uint16_t, bool> DeviceResources::CPUBreak = {
-    {0xD1FB, true} // First port E4h read
-};
-void (*DeviceResources::BreakHandle)(uint16_t) = nullptr;
 
 void DeviceResources::LoadDiskBasic(const char* disk_path)
 {

@@ -14,16 +14,19 @@ class DeviceResources
 public:
     DeviceResources() = delete;
 
+    static bool MachineStarted;
+
     static uint8_t RAM[0x10000];
     static uint8_t ROM[0x8000];
     static bool    ROMActive;
-    static z80     CPU;
-    static std::atomic<bool> CPUPause;
-    static std::atomic<bool> CPUExit;
-    static std::thread CPUThread;
 
+    static z80     CPU;
+    static std::thread CPUThread;
     static std::unordered_map<uint16_t, bool> CPUBreak;
     static void (*BreakHandle)(uint16_t);
+    static std::atomic<bool> CPUPause;
+    static std::atomic<bool> CPUExit;
+
 
     static void LoadDiskBasic(const char* disk_path);
 

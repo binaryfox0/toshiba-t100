@@ -47,8 +47,19 @@ INLINE uint8_t GenerateFlagByte() {
     return val;
 }
 
-void DrawRegistersView()
+void DrawRegistersView(const float size, uint8_t*)
 {
+    // ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2());
+    ImGui::BeginChild("##registerview_child", ImVec2(0, size), ImGuiChildFlags_Border);
+    
+    if(!DeviceResources::MachineStarted) {
+        DisplayCenteredText("Please start machine to view CPU registers");
+
+        // ImGui::PopStyleVar();
+        ImGui::EndChild();
+        return;
+    }
+
     if (ImGui::BeginTable("##registers_view", 2, 
         ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersInnerH
     ))
@@ -147,11 +158,22 @@ void DrawRegistersView()
 
         ImGui::EndTable();
     }
+    ImGui::EndChild();
+    // ImGui::PopStyleVar();
 }
 
 
-void DrawBreakpointPanel(ImDrawList *draw_list)
+void DrawBreakpointPanel(const float size, uint8_t*)
 {
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImGuiStyle().WindowPadding);
+    ImGui::BeginChild("##breakpoints_table_child", {0, size}, ImGuiChildFlags_Borders);
+    ImDrawList* draw_list = ImGui::GetWindowDrawList();
+
+    ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_TableRowBg));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::GetStyleColorVec4(ImGuiCol_TableRowBg));
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImGui::GetStyleColorVec4(ImGuiCol_TableRowBg));
+
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2());
     if(ImGui::BeginTable("##breakpoints_table", 3))
     {
         ImGui::TableSetupColumn("##breakpoint_disable-able_col", ImGuiTableColumnFlags_WidthFixed);
@@ -176,7 +198,7 @@ void DrawBreakpointPanel(ImDrawList *draw_list)
                 if(DrawHyperlinkButton((to_hex(pair->first)).c_str()))
                 {
                     DisassemblerView::UpdateDisplayRange(pair->first, true);
-                    DisassemblerView::FocusAddress(pair->first, false);
+                    DisassemblerView::FocusAddress(pair->first, true);
                 }
                 // ImGui::Text("%04X", pair->first);
             }
@@ -184,41 +206,37 @@ void DrawBreakpointPanel(ImDrawList *draw_list)
         ImGui::EndTable();
 
     }
+    ImGui::PopStyleVar();
+    ImGui::PopStyleColor(3);
+
+    ImGui::EndChild();
+    ImGui::PopStyleVar();
 }
 
+static const float splitter_width = 4.0f;
+static float ratio = 0.5f;
 static ImVec2 window_size = ImVec2(310, 0);
-void UpdateSidePanel(const ImVec2 viewport_size)
+static ImVec2 panel_size = ImVec2(310, 0);
+
+void UpdateSidePanel(const ImVec2 size)
 {
-    window_size.y = viewport_size.y;
+    window_size = size;
+    CalculateSplitterPanel(&panel_size, &ratio, window_size.y, false, ImVec2(0.25f, 0.75f));
 }
 
-void DrawSidePanel()
+void DrawSidePanel(const float size, uint8_t*)
 {
+    // UpdateSidePanel(ImVec2(size, window_size.y));
     CheckBreakpointListChanged();
 
-    ImGui::SetNextWindowPos(ImVec2(0.0f, ImGui::GetFrameHeight()));
-    ImGui::SetNextWindowSize(window_size);
-    ImGui::Begin("Side panel demo", NULL, ImGuiWindowFlags_NoScrollbar);
+    ImGui::BeginChild("##sidepanel", {size, 0});
 
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2());
-    ImGui::BeginChild("##registerview", ImVec2(0, 230), ImGuiChildFlags_Borders);
-    DrawRegistersView();
+    DrawSplitter(1, 
+        &panel_size, &ratio, 
+        window_size.y, false, 
+        DrawRegistersView, 0, DrawBreakpointPanel, 0, 
+        ImVec2(0.25f, 0.75f)
+    );
+
     ImGui::EndChild();
-    ImGui::PopStyleVar();
-
-    ImGui::BeginChild("##breakpoints_display", {}, ImGuiChildFlags_Borders);
-    ImDrawList *draw_list = ImGui::GetWindowDrawList();
-
-    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2());
-    ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_TableRowBg));
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::GetStyleColorVec4(ImGuiCol_TableRowBg));
-    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImGui::GetStyleColorVec4(ImGuiCol_TableRowBg));
-
-    DrawBreakpointPanel(draw_list);
-
-    ImGui::PopStyleColor(3);
-    ImGui::PopStyleVar();
-    ImGui::EndChild();
-
-    ImGui::End();
 }

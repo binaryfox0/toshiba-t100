@@ -5,6 +5,7 @@
 #include <filesystem>
 
 #include "Internal.h"
+
 #if defined(PLATFORM_LINUX)
 #   include <unistd.h>
 #elif defined(PLATFORM_WINDOWS)
@@ -31,7 +32,8 @@
 #include "DisassemblerView/Main.hpp"
 #include "Logging.h"
 #include "DeviceResources.hpp"
-#include "SidePanel.hpp"
+#include "UIHelpers.hpp"
+#include "MainLayout.hpp"
 
 namespace fs = std::filesystem;
 
@@ -44,9 +46,9 @@ struct GUIElement {
 } gui_elements[] = {
     {[](){ImGui::ShowDemoWindow();}, &show_demo},
     {DrawMessageBox, &messagebox_show},
-    {DisassemblerView::Draw, &always_true},
-    {DrawEventLog, &eventlog_show},
-    {DrawSidePanel, &always_true}
+    // {DisassemblerView::Draw, &always_true},
+    // {DrawEventLog, &eventlog_show},
+    {DrawMainLayout, &always_true}
 };
 
 bool GetProgramParentDirectory(fs::path& parent_dir)
@@ -230,16 +232,16 @@ int main(int, char**)
 
     info("ImGui was initialized successfully, version: %s", IMGUI_VERSION);
 
+    UIHelpersInit();
     ResetEventClock();
     ResourceManager::Init(renderer);
     LoadAllImageResources();
-
     DeviceResources::LoadDiskBasic("/home/binaryfox0/proj/toshiba-t100-pc/images/TDISKBASIC.img");
 
     // Our state
     bool show_demo_window = true;
     bool show_another_window = false;
-    ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+    ImVec4 clear_color = ImVec4();
 
     // Main loop
     while (!done)
@@ -269,7 +271,7 @@ int main(int, char**)
         if(current_size.x != last_size.x || current_size.y != last_size.y) {
             info("window size changed");
             ImVec2 real_size = ImVec2(current_size.x, current_size.y - ImGui::GetFrameHeight());
-            UpdateSidePanel(real_size);
+            UpdateMainLayoutSize(real_size);
             last_size = current_size;
         }
         for(int i = 0; i < sizeof(gui_elements) / sizeof(gui_elements[0]); i++)
