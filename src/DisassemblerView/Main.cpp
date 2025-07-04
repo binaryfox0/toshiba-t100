@@ -145,7 +145,7 @@ void Init(const uint8_t* disassembler_memory, const uint32_t size, const uint16_
 void Draw(const float size, uint8_t*)
 {
     // ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2());
-    ImGui::BeginChild("Disassembler", {size, 0}, ImGuiChildFlags_Borders);
+    ImGui::BeginChild("Disassembler", {0, size}, ImGuiChildFlags_Borders);
 
     DrawToolbar();
 

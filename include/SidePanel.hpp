@@ -6,6 +6,6 @@
 #include "imgui.h"
 
 void DrawSidePanel(const float size, uint8_t*);
-void UpdateSidePanel(const ImVec2 size);
+void UpdateSidePanel(const float size);
 
 #endif

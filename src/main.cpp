@@ -29,7 +29,6 @@
 #include "ResourceManager.hpp"
 #include "DeviceResources.hpp"
 #include "EventLog.hpp"
-#include "DisassemblerView/Main.hpp"
 #include "Logging.h"
 #include "DeviceResources.hpp"
 #include "UIHelpers.hpp"
@@ -40,15 +39,15 @@ namespace fs = std::filesystem;
 bool always_true = true;
 
 bool show_demo = false;
+bool mainlayout_show = true;
+
 struct GUIElement {
     void (*handle)(void);
     bool *show;
 } gui_elements[] = {
     {[](){ImGui::ShowDemoWindow();}, &show_demo},
     {DrawMessageBox, &messagebox_show},
-    // {DisassemblerView::Draw, &always_true},
-    // {DrawEventLog, &eventlog_show},
-    {DrawMainLayout, &always_true}
+    {DrawMainLayout, &mainlayout_show}
 };
 
 bool GetProgramParentDirectory(fs::path& parent_dir)
@@ -150,14 +149,20 @@ void DrawMenuBar()
             if (ImGui::MenuItem("Open", "Ctrl-O")) {
                 OpenDisk();
             }
-            if(ImGui::MenuItem(show_demo ? "Close ImGui Demo" : "Show ImGui Demo")) {
-                show_demo = !show_demo;
-            }
+
             if (ImGui::MenuItem("Exit", "Ctrl+W")) {
                 done = true;
             }
             ImGui::EndMenu();
         }
+#ifdef BUILD_DEBUG
+        if(ImGui::BeginMenu("Debug")) {
+            if(ImGui::MenuItem(show_demo ? "Close ImGui Demo" : "Show ImGui Demo")) {
+                mainlayout_show = !(show_demo = !show_demo);
+            }
+            ImGui::EndMenu();
+        }
+#endif
         ImGui::EndMainMenuBar();
     }
 }

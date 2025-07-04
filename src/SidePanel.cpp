@@ -49,13 +49,13 @@ INLINE uint8_t GenerateFlagByte() {
 
 void DrawRegistersView(const float size, uint8_t*)
 {
-    // ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2());
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2());
     ImGui::BeginChild("##registerview_child", ImVec2(0, size), ImGuiChildFlags_Border);
     
     if(!DeviceResources::MachineStarted) {
         DisplayCenteredText("Please start machine to view CPU registers");
 
-        // ImGui::PopStyleVar();
+        ImGui::PopStyleVar();
         ImGui::EndChild();
         return;
     }
@@ -159,7 +159,7 @@ void DrawRegistersView(const float size, uint8_t*)
         ImGui::EndTable();
     }
     ImGui::EndChild();
-    // ImGui::PopStyleVar();
+    ImGui::PopStyleVar();
 }
 
 
@@ -215,13 +215,13 @@ void DrawBreakpointPanel(const float size, uint8_t*)
 
 static const float splitter_width = 4.0f;
 static float ratio = 0.5f;
-static ImVec2 window_size = ImVec2(310, 0);
+static float winsize_y = 0.0f;
 static ImVec2 panel_size = ImVec2(310, 0);
 
-void UpdateSidePanel(const ImVec2 size)
+void UpdateSidePanel(const float size)
 {
-    window_size = size;
-    CalculateSplitterPanel(&panel_size, &ratio, window_size.y, false, ImVec2(0.25f, 0.75f));
+    winsize_y = size;
+    CalculateSplitterPanel(&panel_size, &ratio, winsize_y, false, ImVec2(0.25f, 0.75f));
 }
 
 void DrawSidePanel(const float size, uint8_t*)
@@ -233,7 +233,7 @@ void DrawSidePanel(const float size, uint8_t*)
 
     DrawSplitter(1, 
         &panel_size, &ratio, 
-        window_size.y, false, 
+        winsize_y, false, 
         DrawRegistersView, 0, DrawBreakpointPanel, 0, 
         ImVec2(0.25f, 0.75f)
     );

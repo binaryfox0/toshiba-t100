@@ -1,12 +1,10 @@
 #include "UIHelpers.hpp"
 
-#include <cassert>
-#include <cmath>
 #include <unordered_map>
 
-#include "Internal.h"
 #include "ResourceManager.hpp"
-#include "imgui.h"
+#include "Internal.h"
+
 #include "imgui_internal.h"
 
 bool DrawInactiveableButton(
@@ -148,14 +146,57 @@ void DrawSplitter(
     draw_panel2(panel_size->y, panel2_data);
 }
 
-void DisplayCenteredText(const char* text)
+// This is from imgui_internal.h but it is static inline, inaccessible from outside
+INLINE const char* CalcWordWrapNextLineStartA(const char* text, const char* text_end)
 {
-    ImVec2 avail = ImGui::GetWindowSize();
-    ImVec2 text_size = ImGui::CalcTextSize(text);
+    while (text < text_end && ImCharIsBlankA(*text))
+        text++;
+    return text;
+}
 
-    ImGui::SetCursorPos(ImVec2(
-        (avail.x - text_size.x) * 0.5f,
-        (avail.y - text_size.y) * 0.5f
-    ));
-    ImGui::TextUnformatted(text);
+void DisplayCenteredText(const char* text) {
+    ImFont* font = ImGui::GetFont();
+    ImDrawList* draw_list = ImGui::GetWindowDrawList();
+
+    const float font_size = ImGui::GetCurrentContext()->FontSize;
+    const ImVec2 reigon = ImGui::GetContentRegionAvail();
+
+    // First pass: Calculate text height to center window
+    const char* s = text, *text_end = s + strlen(s);
+    float total_height = 0.0f;
+        while(s < text_end) {
+        const char* line_end = (const char*)memchr(s, '\n', text_end - s);
+        if(!line_end) line_end = text_end;
+        const char* line_start = s;
+        while(line_start < line_end) {
+            const char* wrap_eol = font->CalcWordWrapPosition(font_size, line_start, line_end, reigon.x);
+            if(wrap_eol == line_start)
+                wrap_eol = line_start + 1;
+            total_height += ImGui::GetTextLineHeightWithSpacing();
+            line_start = CalcWordWrapNextLineStartA(wrap_eol, line_end);
+        }
+        s = line_end + (line_end < text_end);
+    }
+
+    // Second pass: Render it.
+    ImVec2 draw_pos = ImGui::GetCursorScreenPos();
+    draw_pos.y += (reigon.y - total_height) * 0.5f;
+    s = text; text_end = s + strlen(s); // reset
+    while(s < text_end) {
+        const char* line_end = (const char*)memchr(s, '\n', text_end - s);
+        if(!line_end) line_end = text_end;
+        const char* line_start = s;
+        while(line_start < line_end) {
+            const char* wrap_eol = font->CalcWordWrapPosition(font_size, line_start, line_end, reigon.x);
+            if(wrap_eol == line_start)
+                wrap_eol = line_start + 1;
+            float linesize_x = ImGui::CalcTextSize(line_start, wrap_eol).x;
+            float centered_x = draw_pos.x + (reigon.x - linesize_x) * 0.5f;
+            draw_list->AddText(ImVec2(centered_x, draw_pos.y), ImGui::GetColorU32(ImGuiCol_Text), line_start, wrap_eol);
+            draw_pos.y += ImGui::GetTextLineHeightWithSpacing();
+            line_start = CalcWordWrapNextLineStartA(wrap_eol, line_end);
+        }
+        s = line_end + (line_end < text_end);
+    }
+    // There is no dummy here because this text only be displayed when there is no content so no need for that
 }

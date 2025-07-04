@@ -27,7 +27,6 @@ public:
     static std::atomic<bool> CPUPause;
     static std::atomic<bool> CPUExit;
 
-
     static void LoadDiskBasic(const char* disk_path);
 
     static void StopCPUThread();

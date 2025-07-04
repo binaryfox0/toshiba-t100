@@ -7,11 +7,12 @@
 #include <stdio.h>
 #include <stdint.h>
 
-#include "imgui.h"
-#include "nfd.h"
-
+#include "UIHelpers.hpp"
 #include "ResourceManager.hpp"
 #include "MessageBox.hpp"
+
+#include "imgui.h"
+#include "nfd.h"
 
 
 // Why they make the way to access function so long
@@ -38,10 +39,23 @@ void ClearEventLog() {
     events.clear();
 }
 
-void DrawEventLog()
+void SaveEventLog(const char* path) {
+    FILE* file = fopen(path, "w");
+    for(const auto& event : events) {
+        uint64_t ms = event.ms;
+        int hours   = static_cast<int>(ms / (1000 * 60 * 60));
+        int minutes = static_cast<int>((ms / (1000 * 60)) % 60);
+        int seconds = static_cast<int>((ms / 1000) % 60);
+        int millis  = static_cast<int>(ms % 10000); // 4-digit precision
+
+        fprintf(file, "[%02d:%02d:%02d.%04d]: %s\n", hours, minutes, seconds, millis, event.content.c_str());
+    }
+    fclose(file);
+}
+
+void DrawEventLog(const float size, uint8_t*)
 {
-    ImGui::SetNextWindowSize(ImVec2(400, 400), ImGuiCond_FirstUseEver);
-    ImGui::Begin("Event Log", nullptr, ImGuiWindowFlags_MenuBar);
+    ImGui::BeginChild("##eventpanel", {0, size}, ImGuiChildFlags_Borders, ImGuiWindowFlags_MenuBar);
     if(ImGui::BeginMenuBar()) {
         if(ImGui::BeginMenu("File"))
         {
@@ -49,11 +63,10 @@ void DrawEventLog()
                 nfdchar_t *outPath = NULL;
                 nfdresult_t result = NFD_SaveDialog(&outPath, 0, 0, 0, 0);
                 if ( result == NFD_OKAY ) {
-                    FILE* file = fopen(outPath, "w");
+                    SaveEventLog(outPath);
                     NFD_FreePathU8(outPath);
-                    fclose(file);
                 }
-                else {
+                else if(result != NFD_CANCEL){
                     CreateMessageBox("Error", NFD_GetError());
                 }
             }
@@ -70,17 +83,7 @@ void DrawEventLog()
     ImGui::Text("Total event count: %lu\n", events.size());
     ImGui::BeginChild("##events", ImVec2(0, 0), ImGuiChildFlags_Borders);
     if(events.empty())
-    {
-        const char* text = "No event was recorded.";
-        ImVec2 avail = ImGui::GetWindowSize();
-        ImVec2 text_size = ImGui::CalcTextSize(text);
-
-        ImGui::SetCursorPos(ImVec2(
-            (avail.x - text_size.x) * 0.5f,
-            (avail.y - text_size.y) * 0.5f
-        ));
-        ImGui::TextUnformatted(text);
-    }
+        DisplayCenteredText("No event was recorded");
     else {
         bool is_at_bottom = ImGui::GetScrollY() >= ImGui::GetScrollMaxY() - 1.0f;
         ImGuiListClipper clipper;
@@ -100,5 +103,5 @@ void DrawEventLog()
             ImGui::SetScrollHereY(1.0f);
     }
     ImGui::EndChild();
-    ImGui::End();
+    ImGui::EndChild();
 }
