@@ -7,6 +7,7 @@
 #include <atomic>
 #include <thread>
 
+// A extern C wrapper
 #include "z80_cpp.h"
 
 class DeviceResources

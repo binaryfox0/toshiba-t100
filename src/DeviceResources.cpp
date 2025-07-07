@@ -15,6 +15,9 @@
 #include "DisassemblerView/Main.hpp"
 #include "MessageBox.hpp"
 
+// Devices
+#include "VirtualFDC.hpp"
+
 #include "z80.h"
 
 #define DISK_TRACK_SIZE  0x1000
@@ -40,6 +43,9 @@ void DeviceResources::LoadDiskBasic(const char* disk_path)
 {
     // Load IPL
     std::ifstream file(disk_path, std::ios::binary);
+    if(!file.is_open()) {
+        return;
+    }
     for(int i = 0; i < DISK_TRACK_SIZE; i++) {
         uint8_t byte = 0;
         file.read((char*)&byte, 1);
@@ -160,10 +166,13 @@ uint8_t DeviceResources::CPUIn(z80* cpu, uint8_t port)
         {0xE5, "(uPD765 Data Register)"},
     };
     AddNewEvent("CPU trying to read data from port: " + to_hex(port) + " " + in_actions[port]);
+    uint8_t out = 0;
     switch(port) {
-    case 0xE4: return 0xFF;
+    case 0xE4: out = ReadStatusRegister(); break;
+    case 0xE5: out = ReadDataRegister(); break;
     }
-    return 0;
+    AddNewEvent("Responded with value: " + to_bin(out) + " (" + to_hex(out) + ")");
+    return out;
 }
 
 void DeviceResources::CPUOut(z80* cpu, uint8_t port, uint8_t value)
@@ -171,12 +180,14 @@ void DeviceResources::CPUOut(z80* cpu, uint8_t port, uint8_t value)
     static std::unordered_map<uint8_t, std::string> out_actions = {
         {0xE0, "(uPD765 TL Signal On)"},
         {0xE2, "(uPD765 TL Signal Off)"},
+        {0xE5, "(uPD765 Data Register)"},
         {0xE6, "(uPD765 Control Signal)"}
     };
     AddNewEvent("CPU trying to write data to port: " + to_hex(port) + " with value: " + to_hex(value) + " " + out_actions[port]);
     switch(port)
     {
-    case 0xE6:
+    case 0xE5:
+        WriteToDataRegister(value);
         break;
     }
 }

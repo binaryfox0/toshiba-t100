@@ -1,6 +1,8 @@
 #ifndef INTERNAL_H
 #define INTERNAL_H
 
+#include <stdint.h>
+
 #if defined(_MSC_VER)
 #   define INLINE __forceinline
 #else
@@ -56,7 +58,7 @@
 #define warn(fmt, ...) printf(ANSIES("\x1b[1;33m") "warn" ANSIES("\x1b[0m") ": " fmt "\n", ##__VA_ARGS__)
 #define error(fmt, ...) fprintf(stderr, ANSIES("\x1b[1;31m") "error" ANSIES("\x1b[0m") ": " fmt "\n", ##__VA_ARGS__)
 
-
+#define ARRSZ(arr) (sizeof(arr) / sizeof(arr[0]))
 
 typedef struct __Vec2
 {
@@ -69,9 +71,9 @@ typedef struct __Vec2
 #include <iomanip>
 
 template <typename T, typename = typename std::enable_if<std::is_unsigned<T>::value>::type>
-INLINE std::string to_hex(T val, bool postfix = true) {
+INLINE std::string to_hex(T val, bool prefix = true) {
     std::stringstream ss;
-    ss << (postfix ? "0x" : "")
+    ss << (prefix ? "0x" : "")
        << std::hex << std::setw(sizeof(T) * 2)
        << std::uppercase << std::setfill('0')
        << static_cast<unsigned long>(val);  // cast avoids char printing weirdness

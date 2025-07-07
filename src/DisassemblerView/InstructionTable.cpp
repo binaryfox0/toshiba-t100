@@ -3,13 +3,14 @@
 #include <vector>
 #include <algorithm>
 
-#include "DisassemblerView/Main.hpp"
 #include "imgui.h"
 
+#include "DisassemblerView/Core.hpp"
+#include "DisassemblerView/InstructionTableMultiselect.hpp"
+#include "DisassemblerView/Main.hpp"
 #include "Z80Disassembler.h"
 
 #include "Internal.h"
-#include "DisassemblerView/Core.hpp"
 #include "UIHelpers.hpp"
 #include "DeviceResources.hpp"
 
@@ -124,7 +125,7 @@ INLINE void ScrollSync()
 
 namespace DisassemblerView
 {
-static bool stop_access = false; // to prevent out-of-bound element when the address doesn't in current display ranges
+static bool stop_access = false; // to prevent out-of-bound element/SIGSEGV when the address doesn't in current display ranges
 void UpdateDisplayRange(uint16_t address, bool push)
 {
     while (parsed.count(address) == 0 && address > bytes_range.x)
@@ -146,7 +147,7 @@ void UpdateDisplayRange(uint16_t address, bool push)
         if (it == parsed.end())
             break;
         display_ranges.push_back({false, display_addr_end});
-        if(it->second.type == RET)
+        if(mem[it->second.address] == 0xC9)
             display_ranges.push_back({true});
         display_addr_end += it->second.size;
     }
@@ -185,6 +186,21 @@ void DrawInstructionTable()
             ImGui::TableSetupColumn("##instrs_col");
             ImGui::TableSetupColumn("##operands_col");
 
+            static InstructionTableMultiselect selection;
+            ImGuiMultiSelectIO* ms_io = ImGui::BeginMultiSelect(
+                ImGuiMultiSelectFlags_ClearOnClickVoid | ImGuiMultiSelectFlags_ClearOnEscape | ImGuiMultiSelectFlags_BoxSelect2d ,
+                selection.Size, display_ranges.size()
+            );
+            selection.UserData = (void*)&display_ranges;
+            selection.AdapterIndexToStorageId = [](ImGuiSelectionBasicStorage* self, int index) -> ImGuiID {
+                // return index;
+                return (*(std::vector<display_instr>*)self->UserData)[index].address;
+            };
+            selection.ApplyRequests(ms_io);
+            // info("%d", selection.Size);
+            if(ImGui::IsKeyChordPressed(ImGuiKey_C | ImGuiKey_ModCtrl) && selection.Size > 0)
+                selection.WriteSelectionToClipboard(display_ranges);
+
             ImGuiListClipper clipper;
             clipper.Begin(display_ranges.size());
 
@@ -200,15 +216,18 @@ void DrawInstructionTable()
             {
                 for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++) {
                     const display_instr& _instr = display_ranges[i];
+                    ImGui::SetNextItemSelectionUserData(i);
                     if(_instr.is_separator) {
                         ImGui::TableNextRow();
                         ImGui::TableNextColumn();
                         ImGui::TextUnformatted(" ");
                         continue;
                     }
-                    bool is_pc = _instr.address == DeviceResources::CPU.pc;
                     const DisassembleInstr& instr = parsed.at(_instr.address);
-                    DrawDisassembleRow(instr, is_pc);
+                    bool selected = selection.Contains(instr.address);
+                    bool is_highlight = _instr.address == DeviceResources::CPU.pc || selected;
+
+                    DrawDisassembleRow(instr, is_highlight);
 
                     if(stop_access) {
                         stop_access = false;
@@ -217,6 +236,9 @@ void DrawInstructionTable()
                 }
             }
             clipper.End();
+
+            ms_io = ImGui::EndMultiSelect();
+            selection.ApplyRequests(ms_io);
 
             ImGui::EndTable();
         }

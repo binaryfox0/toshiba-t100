@@ -1,5 +1,5 @@
-#ifndef DISASSEMBLER_VIEW_MAIN_HPP
-#define DISASSEMBLER_VIEW_MAIN_HPP
+#ifndef DV_MAIN_HPP
+#define DV_MAIN_HPP
 
 #include <stdint.h>
 

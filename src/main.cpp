@@ -241,6 +241,8 @@ int main(int, char**)
     ResetEventClock();
     ResourceManager::Init(renderer);
     LoadAllImageResources();
+
+    // Use on my machine btw
     DeviceResources::LoadDiskBasic("/home/binaryfox0/proj/toshiba-t100-pc/images/TDISKBASIC.img");
 
     // Our state

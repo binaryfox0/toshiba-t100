@@ -211,6 +211,17 @@ void DrawBreakpointPanel(const float size, uint8_t*)
 
     ImGui::EndChild();
     ImGui::PopStyleVar();
+    if(ImGui::BeginPopupContextItem()) {
+        if(ImGui::MenuItem("Enable all breakpoints")) {
+            for(auto& a : DeviceResources::CPUBreak)
+                a.second = true;
+        }
+        if(ImGui::MenuItem("Disable all breakpoints\n")) {
+            for(auto& a : DeviceResources::CPUBreak)
+                a.second = false;
+        }
+        ImGui::EndPopup();
+    }
 }
 
 static const float splitter_width = 4.0f;
