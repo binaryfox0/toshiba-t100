@@ -62,7 +62,7 @@
 
 typedef struct __Vec2
 {
-    int x, y;
+    float x, y;
 } __Vec2;
 
 #ifdef __cplusplus

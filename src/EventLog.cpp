@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdint.h>
 
+#include "Internal.h"
 #include "UIHelpers.hpp"
 #include "ResourceManager.hpp"
 #include "MessageBox.hpp"
@@ -53,7 +54,30 @@ void SaveEventLog(const char* path) {
     fclose(file);
 }
 
-void DrawEventLog(const float size, uint8_t*)
+static std::vector<event_entry> filtered_event;
+void DrawEventLogToolBar() {
+    ImageResource &icon = ResourceManager::GetImage("delete_forever.png");
+    if(ImGui::ImageButton("##delete_forever", icon.texture, icon.size)) {
+        events.clear();
+        ResetEventClock();
+    }
+    ImGui::SameLine();
+    static ImGuiTextFilter filter;
+    
+    if(filter.InputBuf[0] == '\0') {
+        filtered_event = events;
+    }
+    if(filter.Draw("##text_filter")) {
+        filtered_event.clear();
+        for(const auto& a : events)
+            if(filter.PassFilter(a.content.c_str()))
+                filtered_event.push_back(a);
+    }
+
+    // ImGui::Text("Total event count: %lu\n", events.size());
+}
+
+void DrawEventLog(const float size, Splitter* sp)
 {
     ImGui::BeginChild("##eventpanel", {0, size}, ImGuiChildFlags_Borders, ImGuiWindowFlags_MenuBar);
     if(ImGui::BeginMenuBar()) {
@@ -74,29 +98,26 @@ void DrawEventLog(const float size, uint8_t*)
         }
         ImGui::EndMenuBar();
     }
-    ImageResource &icon = ResourceManager::GetImage("delete_forever.png");
-    if(ImGui::ImageButton("##delete_forever", icon.texture, icon.size)) {
-        events.clear();
-        ResetEventClock();
-    }
-    ImGui::SameLine();
-    ImGui::Text("Total event count: %lu\n", events.size());
+
+    DrawEventLogToolBar();
+    
     ImGui::BeginChild("##events", ImVec2(0, 0), ImGuiChildFlags_Borders);
     if(events.empty())
         DisplayCenteredText("No event was recorded");
     else {
         bool is_at_bottom = ImGui::GetScrollY() >= ImGui::GetScrollMaxY() - 1.0f;
         ImGuiListClipper clipper;
-        clipper.Begin(events.size());
+        clipper.Begin(filtered_event.size());
         while(clipper.Step()) {
             for(int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++) {
-                uint64_t ms = events[i].ms;
+                const auto& entry = filtered_event[i];
+                uint64_t ms = entry.ms;
                 int hours   = static_cast<int>(ms / (1000 * 60 * 60));
                 int minutes = static_cast<int>((ms / (1000 * 60)) % 60);
                 int seconds = static_cast<int>((ms / 1000) % 60);
                 int millis  = static_cast<int>(ms % 10000); // 4-digit precision
 
-                ImGui::Text("[%02d:%02d:%02d.%04d]: %s", hours, minutes, seconds, millis, events[i].content.c_str());
+                ImGui::Text("[%02d:%02d:%02d.%04d]: %s", hours, minutes, seconds, millis, entry.content.c_str());
             }
         }
         if(is_at_bottom)

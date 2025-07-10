@@ -4,10 +4,12 @@
 #include <string>
 #include <stdint.h>
 
+#include "Splitter.hpp"
+
 extern bool eventlog_show;
 void ResetEventClock();
 void AddNewEvent(const std::string& content);
 void ClearEventLog();
-void DrawEventLog(const float size, uint8_t*);
+void DrawEventLog(const float size, Splitter* sp);
 
 #endif

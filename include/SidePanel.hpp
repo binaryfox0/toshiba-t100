@@ -3,9 +3,10 @@
 
 #include <stdint.h>
 
+#include "Splitter.hpp"
 #include "imgui.h"
 
-void DrawSidePanel(const float size, uint8_t*);
+void DrawSidePanel(const float size, Splitter* sp);
 void UpdateSidePanel(const float size);
 
 #endif

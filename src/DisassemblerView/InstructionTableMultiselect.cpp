@@ -8,6 +8,8 @@
 
 static const auto& parsed = DisassemblerView::GetDisassemblerParsedGeneral();
 
+
+
 void InstructionTableMultiselect::WriteSelectionToClipboard(const std::vector<display_instr>& display_instrs)
 {
     std::ostringstream clipboard;
@@ -24,11 +26,13 @@ void InstructionTableMultiselect::WriteSelectionToClipboard(const std::vector<di
         }
 
         const auto& instr = parsed.at(display.address);
-        clipboard << to_hex(instr.address, false) << ": "
+        std::ostringstream line;
+        line << to_hex(instr.address, false) << ": "
                   << z80_get_mnemonic_from_index(instr.type) << " "
                   << instr.operands[0]
-                  << instr.operands[1]
-                  << '\n';
+                  << instr.operands[1];
+        clipboard << line.str() << "\n";
+        info("%s", line.str().c_str());
     }
 
     ImGui::SetClipboardText(clipboard.str().c_str());

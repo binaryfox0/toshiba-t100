@@ -44,8 +44,9 @@ bool FindPreviousInstruction(uint16_t& address)
 {
     for (int i = 1; i <= Z80_MAX_INSTR_LEN; i++)
     {
-        if (address < bytes_range.x + i) break;
         uint16_t test_addr = address - i;
+        if(test_addr < bytes_range.x)
+            break;
         try {
             const DisassembleInstr& instr = parsed.at(test_addr);
             if (instr.size == i) {
@@ -125,16 +126,19 @@ INLINE void ScrollSync()
 
 namespace DisassemblerView
 {
-static bool stop_access = false; // to prevent out-of-bound element/SIGSEGV when the address doesn't in current display ranges
+static bool stop_access = false; // to prevent out-of-bound access/SIGSEGV when the address doesn't in current display ranges
+static bool out_of_range = false;
 void UpdateDisplayRange(uint16_t address, bool push)
 {
-    while (parsed.count(address) == 0 && address > bytes_range.x)
-        address--;
+    out_of_range = false;
+    if(parsed.find(address) == parsed.end())
+        out_of_range = true;
     if(!history.empty())
         if(in_range(history.back(), display_addr_end, address))
             return;
     uint16_t display_addr_start = address;
     while (FindPreviousInstruction(display_addr_start)) {}
+    // display_addr_start++;
 
     if (push)
         history.push_back(display_addr_start);
@@ -158,6 +162,73 @@ void InitInstructionTable() {
     UpdateDisplayRange(bytes_range.x, true);
 }
 
+void DrawTableContent()
+{
+    if (ImGui::BeginTable("##instr_view", 4))
+    {
+        ImGui::TableSetupColumn("##address_col", ImGuiTableColumnFlags_WidthFixed);
+        ImGui::TableSetupColumn("##bytes_col");
+        ImGui::TableSetupColumn("##instrs_col");
+        ImGui::TableSetupColumn("##operands_col");
+
+        static InstructionTableMultiselect selection;
+        ImGuiMultiSelectIO* ms_io = ImGui::BeginMultiSelect(
+            ImGuiMultiSelectFlags_ClearOnClickVoid | ImGuiMultiSelectFlags_ClearOnEscape | ImGuiMultiSelectFlags_BoxSelect2d ,
+            selection.Size, display_ranges.size()
+        );
+        selection.UserData = (void*)&display_ranges;
+        selection.AdapterIndexToStorageId = [](ImGuiSelectionBasicStorage* self, int index) -> ImGuiID {
+            // return index;
+            return (*(std::vector<display_instr>*)self->UserData)[index].address;
+        };
+        selection.ApplyRequests(ms_io);
+        // info("%d", selection.Size);
+        if(ImGui::IsKeyChordPressed(ImGuiKey_C | ImGuiKey_ModCtrl) && selection.Size > 0)
+            selection.WriteSelectionToClipboard(display_ranges);
+
+        ImGuiListClipper clipper;
+        clipper.Begin(display_ranges.size());
+
+        if (focus_addr != -1) {
+            uint16_t tmp = history.back();
+            auto it = std::find_if(display_ranges.begin(), display_ranges.end(), [](const display_instr& i){ return i.address == focus_addr; });
+            if(it != display_ranges.end())
+                ImGui::SetScrollY(ImGui::GetTextLineHeightWithSpacing() * std::distance(display_ranges.begin(), it));
+            focus_addr = -1;
+        }
+
+        while (clipper.Step())
+        {
+            for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++) {
+                const display_instr& _instr = display_ranges[i];
+                ImGui::SetNextItemSelectionUserData(i);
+                if(_instr.is_separator) {
+                    ImGui::TableNextRow();
+                    ImGui::TableNextColumn();
+                    ImGui::TextUnformatted(" ");
+                    continue;
+                }
+                const DisassembleInstr& instr = parsed.at(_instr.address);
+                bool selected = selection.Contains(instr.address);
+                bool is_highlight = _instr.address == DeviceResources::CPU.pc || selected;
+
+                DrawDisassembleRow(instr, is_highlight);
+
+                if(stop_access) {
+                    stop_access = false;
+                    break;
+                }
+            }
+        }
+        clipper.End();
+
+        ms_io = ImGui::EndMultiSelect();
+        selection.ApplyRequests(ms_io);
+
+        ImGui::EndTable();
+    }
+}
+
 void DrawInstructionTable()
 {
     if (highlight_addr != -1) {
@@ -168,80 +239,11 @@ void DrawInstructionTable()
     ImGui::BeginChild("##instruction_view");
     ScrollSync();
     if(parsed.empty())
-    {
-        const char* text = "Please load a disk by open menu File->Open.";
-        ImVec2 avail = ImGui::GetWindowSize();
-        ImVec2 text_size = ImGui::CalcTextSize(text);
-
-        ImGui::SetCursorPos(ImVec2(
-            (avail.x - text_size.x) * 0.5f,
-            (avail.y - text_size.y) * 0.5f
-        ));
-        ImGui::TextUnformatted(text);
-    } else {
-        if (ImGui::BeginTable("##instr_view", 4))
-        {
-            ImGui::TableSetupColumn("##address_col", ImGuiTableColumnFlags_WidthFixed);
-            ImGui::TableSetupColumn("##bytes_col");
-            ImGui::TableSetupColumn("##instrs_col");
-            ImGui::TableSetupColumn("##operands_col");
-
-            static InstructionTableMultiselect selection;
-            ImGuiMultiSelectIO* ms_io = ImGui::BeginMultiSelect(
-                ImGuiMultiSelectFlags_ClearOnClickVoid | ImGuiMultiSelectFlags_ClearOnEscape | ImGuiMultiSelectFlags_BoxSelect2d ,
-                selection.Size, display_ranges.size()
-            );
-            selection.UserData = (void*)&display_ranges;
-            selection.AdapterIndexToStorageId = [](ImGuiSelectionBasicStorage* self, int index) -> ImGuiID {
-                // return index;
-                return (*(std::vector<display_instr>*)self->UserData)[index].address;
-            };
-            selection.ApplyRequests(ms_io);
-            // info("%d", selection.Size);
-            if(ImGui::IsKeyChordPressed(ImGuiKey_C | ImGuiKey_ModCtrl) && selection.Size > 0)
-                selection.WriteSelectionToClipboard(display_ranges);
-
-            ImGuiListClipper clipper;
-            clipper.Begin(display_ranges.size());
-
-            if (focus_addr != -1) {
-                uint16_t tmp = history.back();
-                auto it = std::find_if(display_ranges.begin(), display_ranges.end(), [](const display_instr& i){ return i.address == focus_addr; });
-                if(it != display_ranges.end())
-                    ImGui::SetScrollY(ImGui::GetTextLineHeightWithSpacing() * std::distance(display_ranges.begin(), it));
-                focus_addr = -1;
-            }
-
-            while (clipper.Step())
-            {
-                for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++) {
-                    const display_instr& _instr = display_ranges[i];
-                    ImGui::SetNextItemSelectionUserData(i);
-                    if(_instr.is_separator) {
-                        ImGui::TableNextRow();
-                        ImGui::TableNextColumn();
-                        ImGui::TextUnformatted(" ");
-                        continue;
-                    }
-                    const DisassembleInstr& instr = parsed.at(_instr.address);
-                    bool selected = selection.Contains(instr.address);
-                    bool is_highlight = _instr.address == DeviceResources::CPU.pc || selected;
-
-                    DrawDisassembleRow(instr, is_highlight);
-
-                    if(stop_access) {
-                        stop_access = false;
-                        break;
-                    }
-                }
-            }
-            clipper.End();
-
-            ms_io = ImGui::EndMultiSelect();
-            selection.ApplyRequests(ms_io);
-
-            ImGui::EndTable();
-        }
+        DisplayCenteredText("Please load a disk by open menu File->Open.");
+    else {
+        if(out_of_range)
+            DisplayCenteredText("No such instructions exist at given address");
+        else DrawTableContent();
     }
     ImGui::EndChild();
 }

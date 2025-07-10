@@ -32,20 +32,19 @@
 #include "Logging.h"
 #include "DeviceResources.hpp"
 #include "UIHelpers.hpp"
+#include "Splitter.hpp"
 #include "MainLayout.hpp"
+#include "MenuBar.hpp"
 
 namespace fs = std::filesystem;
 
 bool always_true = true;
 
-bool show_demo = false;
-bool mainlayout_show = true;
 
 struct GUIElement {
     void (*handle)(void);
     bool *show;
 } gui_elements[] = {
-    {[](){ImGui::ShowDemoWindow();}, &show_demo},
     {DrawMessageBox, &messagebox_show},
     {DrawMainLayout, &mainlayout_show}
 };
@@ -125,47 +124,9 @@ void LoadAllImageResources()
         }
 }
 
-void OpenDisk() {
-    nfdchar_t *outPath = NULL;
-    const nfdu8filteritem_t filters[1] = {{"Disk image", "img"}};
-    nfdresult_t result = NFD_OpenDialog(&outPath, filters, 1, 0);
-        
-    if ( result == NFD_OKAY ) {
-        DeviceResources::LoadDiskBasic(outPath);
-        NFD_FreePathU8(outPath);
-    }
-    else if(result != NFD_CANCEL) {
-        CreateMessageBox("Error", NFD_GetError());
-    }
-}
+
 
 bool done = false;
-void DrawMenuBar()
-{
-    if(ImGui::IsKeyDown(ImGuiMod_Ctrl) && ImGui::IsKeyPressed(ImGuiKey_O, false))
-        OpenDisk();
-    if (ImGui::BeginMainMenuBar()) {
-        if (ImGui::BeginMenu("File")) {
-            if (ImGui::MenuItem("Open", "Ctrl-O")) {
-                OpenDisk();
-            }
-
-            if (ImGui::MenuItem("Exit", "Ctrl+W")) {
-                done = true;
-            }
-            ImGui::EndMenu();
-        }
-#ifdef BUILD_DEBUG
-        if(ImGui::BeginMenu("Debug")) {
-            if(ImGui::MenuItem(show_demo ? "Close ImGui Demo" : "Show ImGui Demo")) {
-                mainlayout_show = !(show_demo = !show_demo);
-            }
-            ImGui::EndMenu();
-        }
-#endif
-        ImGui::EndMainMenuBar();
-    }
-}
 
 int main(int, char**)
 {
@@ -187,6 +148,7 @@ int main(int, char**)
     if(NFD_Init() != NFD_OKAY) {
         error("failed to initialize the following component: nativefiledialog-extended/NFD");
         SDL_Quit();
+        return 1;
     }
     info("NFD was initialized successfully");
 
@@ -201,7 +163,7 @@ int main(int, char**)
     if (window == nullptr) {
         error("failed to create SDL_Window");
         SDL_Quit();
-        return -1;
+        return 1;
     }
     info("create SDL_Window successfully");
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_PRESENTVSYNC | SDL_RENDERER_ACCELERATED);
@@ -224,12 +186,14 @@ int main(int, char**)
 
     // Setup Dear ImGui style
     ImGui::StyleColorsDark();
-    //ImGui::StyleColorsLight();
 
     // Setup scaling
     ImGuiStyle& style = ImGui::GetStyle();
     style.ScaleAllSizes(main_scale);        // Bake a fixed style scale. (until we have a solution for dynamic style scaling, changing this requires resetting Style + calling this again)
     style.FontScaleDpi = main_scale;        // Set initial font scale. (using io.ConfigDpiScaleFonts=true makes this unnecessary. We leave both here for documentation purpose)
+
+    style.TabRounding = 0.0f;
+    style.Colors[ImGuiCol_Text] = ImVec4(212.0f/255, 212.0f/255, 212.0f/255, 1);
 
     // Setup Platform/Renderer backends
     ImGui_ImplSDL2_InitForSDLRenderer(window, renderer);
@@ -237,7 +201,7 @@ int main(int, char**)
 
     info("ImGui was initialized successfully, version: %s", IMGUI_VERSION);
 
-    UIHelpersInit();
+    Splitter::InitStyle();
     ResetEventClock();
     ResourceManager::Init(renderer);
     LoadAllImageResources();

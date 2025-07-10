@@ -64,7 +64,7 @@ void DrawToolbar()
             AddNewEvent("Machine started!");
         } else {
             UpdatePauseResumeButtonImage();
-            DeviceResources::ResetCPU();
+            DeviceResources::ReloadDiskBasic();
             onoff_active_img = "play_arrow_normal.png";
             AddNewEvent("Machine reset!");
         }
@@ -106,7 +106,7 @@ void DrawToolbar()
     TooltipWrapper("Step Into (F11)");
     ImGui::SameLine();
 
-    static char str[7] = "";
+    static char str[5] = "";
     if([&]() -> bool {
         ImageResource& img = ResourceManager::GetImage("jump_to_element.png");
         if(ImGui::ImageButton("##jumptoelement", img.texture, img.size))
@@ -122,8 +122,8 @@ void DrawToolbar()
         return false;
     }()) {
         uint16_t goto_address = strtol(str, 0, 16);
-        DisassemblerView::FocusAddress(goto_address, true);
         DisassemblerView::UpdateDisplayRange(goto_address, true);
+            DisassemblerView::FocusAddress(goto_address, true);
     }
 }
 
@@ -142,10 +142,10 @@ void Init(const uint8_t* disassembler_memory, const uint32_t size, const uint16_
     DeviceResources::BreakHandle = BreakpointHandle;
 }
 
-void Draw(const float size, uint8_t*)
+void Draw(const float height)
 {
     // ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2());
-    ImGui::BeginChild("Disassembler", {0, size}, ImGuiChildFlags_Borders);
+    // ImGui::BeginChild("Disassembler", {0, 0}, ImGuiChildFlags_Borders);
 
     DrawToolbar();
 
@@ -163,7 +163,7 @@ void Draw(const float size, uint8_t*)
 
     ImGui::PopStyleColor(3);
     // ImGui::PopStyleVar();
-    ImGui::EndChild();
+    // ImGui::EndChild();
     // ImGui::PopStyleVar();
 }
 

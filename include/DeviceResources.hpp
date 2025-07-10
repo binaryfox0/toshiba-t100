@@ -2,6 +2,7 @@
 #define DEVICE_RESOURCES_HPP
 
 #include <stdint.h>
+#include <stdlib.h>
 
 #include <unordered_map>
 #include <atomic>
@@ -14,6 +15,10 @@ class DeviceResources
 {
 public:
     DeviceResources() = delete;
+    ~DeviceResources() {
+        if(PrevDskPath)
+            free(PrevDskPath);
+    }
 
     static bool MachineStarted;
 
@@ -29,6 +34,9 @@ public:
     static std::atomic<bool> CPUExit;
 
     static void LoadDiskBasic(const char* disk_path);
+    static inline void ReloadDiskBasic() {
+        LoadDiskBasic(PrevDskPath);
+    }
 
     static void StopCPUThread();
     static void FreeResources();
@@ -36,6 +44,8 @@ public:
     static void ResetCPU();
 
 private:
+    static char* PrevDskPath;
+
     static void     CPUExecutionLoop();
     static uint8_t  CPUReadByte(void* context, uint16_t address);
     static void    CPUWriteByte(void* context, uint16_t address, uint8_t value);

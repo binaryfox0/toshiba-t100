@@ -7,6 +7,7 @@
 #include "DisassemblerView/UnselectableTable.hpp"
 #include "DeviceResources.hpp"
 #include "Internal.h"
+#include "Splitter.hpp"
 #include "UIHelpers.hpp"
 
 #include "imgui.h"
@@ -47,7 +48,7 @@ INLINE uint8_t GenerateFlagByte() {
     return val;
 }
 
-void DrawRegistersView(const float size, uint8_t*)
+void DrawRegistersView(const float size, Splitter* sp)
 {
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2());
     ImGui::BeginChild("##registerview_child", ImVec2(0, size), ImGuiChildFlags_Border);
@@ -163,7 +164,7 @@ void DrawRegistersView(const float size, uint8_t*)
 }
 
 
-void DrawBreakpointPanel(const float size, uint8_t*)
+void DrawBreakpointPanel(const float size, Splitter* sp)
 {
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImGuiStyle().WindowPadding);
     ImGui::BeginChild("##breakpoints_table_child", {0, size}, ImGuiChildFlags_Borders);
@@ -211,7 +212,9 @@ void DrawBreakpointPanel(const float size, uint8_t*)
 
     ImGui::EndChild();
     ImGui::PopStyleVar();
-    if(ImGui::BeginPopupContextItem()) {
+    
+    ImGui::OpenPopupOnItemClick("##breakpoint_popup");
+    if(ImGui::BeginPopup("##breakpoint_popup", ImGuiWindowFlags_NoMove)) {
         if(ImGui::MenuItem("Enable all breakpoints")) {
             for(auto& a : DeviceResources::CPUBreak)
                 a.second = true;
@@ -222,6 +225,18 @@ void DrawBreakpointPanel(const float size, uint8_t*)
         }
         ImGui::EndPopup();
     }
+
+    // if(ImGui::BeginPopupContextItem("##popup")) {
+        
+        
+        
+        
+        
+        
+        
+        
+        
+    // }
 }
 
 static const float splitter_width = 4.0f;
@@ -229,25 +244,17 @@ static float ratio = 0.5f;
 static float winsize_y = 0.0f;
 static ImVec2 panel_size = ImVec2(310, 0);
 
-void UpdateSidePanel(const float size)
-{
-    winsize_y = size;
-    CalculateSplitterPanel(&panel_size, &ratio, winsize_y, false, ImVec2(0.25f, 0.75f));
+static Splitter splitter("##sidepanel_spltter", DrawRegistersView, DrawBreakpointPanel, 0.5, {}, {0.25f, 0.75f}, false);
+
+void UpdateSidePanel(const float size) {
+    splitter.UpdateSize(size);
 }
 
-void DrawSidePanel(const float size, uint8_t*)
+void DrawSidePanel(const float size, Splitter* sp)
 {
-    // UpdateSidePanel(ImVec2(size, window_size.y));
     CheckBreakpointListChanged();
 
     ImGui::BeginChild("##sidepanel", {size, 0});
-
-    DrawSplitter(1, 
-        &panel_size, &ratio, 
-        winsize_y, false, 
-        DrawRegistersView, 0, DrawBreakpointPanel, 0, 
-        ImVec2(0.25f, 0.75f)
-    );
-
+    splitter.Draw();
     ImGui::EndChild();
 }

@@ -39,12 +39,22 @@ void (*DeviceResources::BreakHandle)(uint16_t) = nullptr;
 std::atomic<bool> DeviceResources::CPUPause     = true;
 std::atomic<bool> DeviceResources::CPUExit      = false;
 
+char* DeviceResources::PrevDskPath = 0;
+
 void DeviceResources::LoadDiskBasic(const char* disk_path)
 {
     // Load IPL
     std::ifstream file(disk_path, std::ios::binary);
     if(!file.is_open()) {
         return;
+    }
+    if(PrevDskPath) {
+        if(strcmp(PrevDskPath, disk_path)) {
+            free(PrevDskPath);
+            PrevDskPath = strdup(disk_path);
+        }
+    } else {
+        PrevDskPath = strdup(disk_path);
     }
     for(int i = 0; i < DISK_TRACK_SIZE; i++) {
         uint8_t byte = 0;

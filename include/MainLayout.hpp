@@ -3,6 +3,8 @@
 
 #include "imgui.h"
 
+extern bool mainlayout_show;
+
 void UpdateMainLayoutSize(const ImVec2 size);
 void DrawMainLayout();
 
