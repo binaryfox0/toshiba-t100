@@ -8,11 +8,14 @@
 #include "DisassemblerView/Core.hpp"
 #include "DisassemblerView/InstructionTableMultiselect.hpp"
 #include "DisassemblerView/Main.hpp"
-#include "Z80Disassembler.h"
+#include "DisassemblerView/ImGuiModified.hpp"
+#include "DisassemblerView/Breakpoint.hpp"
 
+#include "Z80Disassembler.h"
 #include "Internal.h"
 #include "UIHelpers.hpp"
 #include "DeviceResources.hpp"
+#include "imgui_internal.h"
 
 #define HIGHLIGHT_DUR 2.5f //2.5s
 
@@ -69,19 +72,22 @@ INLINE void AddressButtonPressed(const uint16_t address)
     highlight_start = ImGui::GetTime();
 }
 
-void DrawDisassembleRow(const DisassembleInstr& row, bool is_pc)
+void DrawDisassembleRow(const DisassembleInstr& row, bool is_pc, ImDrawList* draw_list)
 {
     ImGui::TableNextRow();
+    ImGui::SameLine();
+    ImGui::TableNextColumn();
+    
+    DisassemblerView::DrawBreakpointButton(row.address, draw_list);
+    ImGui::TableNextColumn();
+
+    ImGui::TextUnformatted(row.address == DeviceResources::CPU.pc ? ">" : " ");
     ImGui::TableNextColumn();
 
     ImGui::PushID(row.address);
-    if(ImGui::Selectable("##row_select", highlight_addr == row.address || is_pc, 
-        ImGuiSelectableFlags_AllowOverlap | ImGuiSelectableFlags_SpanAllColumns, ImVec2(0, 0)))
-        ;
+    DisassemblerView::Selectable("##row_select", highlight_addr == row.address || is_pc);
     ImGui::PopID();
     ImGui::SameLine();
-    ImGui::TableSetColumnIndex(0);
-
 
     ImGui::Text("%04X:", row.address);
     ImGui::TableNextColumn();
@@ -124,6 +130,24 @@ INLINE void ScrollSync()
     last_scroll = ImGui::GetScrollY();
 }
 
+INLINE void DrawTableBorderWithIndex(ImRect winrect, ImGuiTable* table, ImDrawList* draw_list, int index) {
+    const float linex = table->Columns[index].MaxX;
+    draw_list->AddLine(
+        ImVec2(linex, winrect.Min.y),
+        ImVec2(linex, winrect.Max.y),
+        ImGui::GetColorU32(ImGuiCol_Border)
+    );
+}
+
+INLINE void DrawTableBorder(ImDrawList* draw_list)
+{
+    ImGuiTable* table = ImGui::GetCurrentTable();
+    ImRect winrect = ImGui::GetCurrentWindow()->Rect();
+
+    DrawTableBorderWithIndex(winrect, table, draw_list, 0);
+    DrawTableBorderWithIndex(winrect, table, draw_list, 1);
+}
+
 namespace DisassemblerView
 {
 static bool stop_access = false; // to prevent out-of-bound access/SIGSEGV when the address doesn't in current display ranges
@@ -164,12 +188,16 @@ void InitInstructionTable() {
 
 void DrawTableContent()
 {
-    if (ImGui::BeginTable("##instr_view", 4))
+    if (ImGui::BeginTable("##instr_view", 6))
     {
+        ImGui::TableSetupColumn("##breakpoints_col", ImGuiTableColumnFlags_WidthFixed);
+        ImGui::TableSetupColumn("##pc_col", ImGuiTableColumnFlags_WidthFixed);
         ImGui::TableSetupColumn("##address_col", ImGuiTableColumnFlags_WidthFixed);
         ImGui::TableSetupColumn("##bytes_col");
         ImGui::TableSetupColumn("##instrs_col");
         ImGui::TableSetupColumn("##operands_col");
+
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, ImGui::GetStyle().FramePadding.y));
 
         static InstructionTableMultiselect selection;
         ImGuiMultiSelectIO* ms_io = ImGui::BeginMultiSelect(
@@ -196,7 +224,8 @@ void DrawTableContent()
                 ImGui::SetScrollY(ImGui::GetTextLineHeightWithSpacing() * std::distance(display_ranges.begin(), it));
             focus_addr = -1;
         }
-
+        
+        ImDrawList* draw_list = ImGui::GetWindowDrawList();
         while (clipper.Step())
         {
             for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++) {
@@ -212,7 +241,7 @@ void DrawTableContent()
                 bool selected = selection.Contains(instr.address);
                 bool is_highlight = _instr.address == DeviceResources::CPU.pc || selected;
 
-                DrawDisassembleRow(instr, is_highlight);
+                DrawDisassembleRow(instr, is_highlight, draw_list);
 
                 if(stop_access) {
                     stop_access = false;
@@ -224,6 +253,10 @@ void DrawTableContent()
 
         ms_io = ImGui::EndMultiSelect();
         selection.ApplyRequests(ms_io);
+
+        ImGui::PopStyleVar();
+
+        DrawTableBorder(draw_list);
 
         ImGui::EndTable();
     }

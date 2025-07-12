@@ -6,7 +6,7 @@
 #include <SDL2/SDL.h>
 
 #include "Internal.h"
-#include "Logging.h"
+#include "Debugging.h"
 
 SDL_Renderer* ResourceManager::s_Renderer = nullptr;
 std::unordered_map<std::string, ImageResource> ResourceManager::s_Images = {};

@@ -3,14 +3,16 @@
 #include <vector>
 #include <algorithm>
 
-#include "DisassemblerView/InstructionTable.hpp"
-#include "DisassemblerView/UnselectableTable.hpp"
+#include "imgui.h"
+
 #include "DeviceResources.hpp"
 #include "Internal.h"
 #include "Splitter.hpp"
 #include "UIHelpers.hpp"
 
-#include "imgui.h"
+#include "DisassemblerView/InstructionTable.hpp"
+#include "DisassemblerView/Breakpoint.hpp"
+
 
 static std::vector<std::pair<const uint16_t, bool>*> bpoints_sorted; // 8n size
 void CheckBreakpointListChanged()

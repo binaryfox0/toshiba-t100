@@ -2,7 +2,6 @@
 
 #include "DisassemblerView/Core.hpp"
 #include "DisassemblerView/InstructionTable.hpp"
-#include "DisassemblerView/UnselectableTable.hpp"
 #include "UIHelpers.hpp"
 #include "EventLog.hpp"
 #include "DeviceResources.hpp"
@@ -156,8 +155,6 @@ void Draw(const float height)
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, table_bg_col);
 
     ImGui::BeginChild("##disassembler_content", ImVec2(), ImGuiChildFlags_Borders);
-    DrawUnselectableTable();
-    ImGui::SameLine(0.0f, 0.0f);
     DrawInstructionTable();
     ImGui::EndChild();
 

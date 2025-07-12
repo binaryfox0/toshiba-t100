@@ -1,11 +1,11 @@
 #include "MainLayout.hpp"
 
-#include "MemoryView.hpp"
 #include "UIHelpers.hpp"
+#include "Splitter.hpp"
 #include "SidePanel.hpp"
 #include "DisassemblerView/Main.hpp"
+#include "MemoryView/Main.hpp"
 #include "EventLog.hpp"
-#include "Splitter.hpp"
 
 #include "imgui.h"
 
@@ -20,7 +20,7 @@ static Splitter main_splitter = Splitter("##mainpanel_splitter", [](const float 
             ImGui::EndTabItem();
         }
         if(ImGui::BeginTabItem("Memory")) {
-            DrawMemoryView();
+            MemoryView::Draw();
             ImGui::EndTabItem();
         }
         ImGui::EndTabBar();
@@ -52,7 +52,7 @@ void DrawMainPanel(const float size, Splitter* sp)
 void DrawMainLayout()
 {
     static const auto flags = 
-        ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize;
+        ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoBringToFrontOnFocus;
     ImGui::SetNextWindowPos({0, ImGui::GetFrameHeight()});
     ImGui::SetNextWindowSize(window_size);
 

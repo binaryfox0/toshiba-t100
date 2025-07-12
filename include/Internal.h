@@ -23,12 +23,12 @@
 #   define PLATFORM_LINUX 
 #elif defined(_WIN32)
 #   define PLATFORM_WIN32
-#   error You can comment this line to test on Windows. I don't have it anyway, very bloated stuff
+#   error You can comment this line to test on Windows. I don't have it anyway.
 #elif defined(__APPLE__) || defined(__MACH__)
 #   define PLATFORM_MACOS
-#   error Why?why?why are you so rich? I need money, but I don't have PayPal, bruh.
+#   error You can comment this line to test on MacOS. It's very expensive though.
 #elif defined(__ANDROID__)
-#   error You have fucking nothing to do, don't you?
+#   error You have nothing to do, do you?
 #else
 #   error Unsupported platform, you can make a pull request to fix this
 #endif

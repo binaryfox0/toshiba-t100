@@ -29,9 +29,8 @@
 #include "ResourceManager.hpp"
 #include "DeviceResources.hpp"
 #include "EventLog.hpp"
-#include "Logging.h"
+#include "Debugging.h"
 #include "DeviceResources.hpp"
-#include "UIHelpers.hpp"
 #include "Splitter.hpp"
 #include "MainLayout.hpp"
 #include "MenuBar.hpp"
@@ -206,8 +205,10 @@ int main(int, char**)
     ResourceManager::Init(renderer);
     LoadAllImageResources();
 
-    // Use on my machine btw
+#ifdef BUILD_DEBUG
+    // Too lazy to manually loading anything...
     DeviceResources::LoadDiskBasic("/home/binaryfox0/proj/toshiba-t100-pc/images/TDISKBASIC.img");
+#endif
 
     // Our state
     bool show_demo_window = true;

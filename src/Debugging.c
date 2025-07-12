@@ -1,9 +1,10 @@
-#include "Logging.h"
+#include "Debugging.h"
 
 #include <SDL2/SDL.h>
 
 
 void LogSDLRendererInfo(SDL_Renderer* renderer) {
+#ifdef BUILD_DEBUG
     SDL_RendererInfo info;
     SDL_GetRendererInfo(renderer, &info);
     
@@ -31,4 +32,5 @@ void LogSDLRendererInfo(SDL_Renderer* renderer) {
     }
 
     printf(" - max texture size: %dx%dpx\n", info.max_texture_width, info.max_texture_height);
+#endif
 }

@@ -8,9 +8,9 @@
 #include <atomic>
 #include <thread>
 
-// A extern C wrapper
-#include "z80_cpp.h"
-
+extern "C" {
+#include "z80.h"
+}
 class DeviceResources
 {
 public:

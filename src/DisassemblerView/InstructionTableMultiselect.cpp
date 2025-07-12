@@ -32,7 +32,6 @@ void InstructionTableMultiselect::WriteSelectionToClipboard(const std::vector<di
                   << instr.operands[0]
                   << instr.operands[1];
         clipboard << line.str() << "\n";
-        info("%s", line.str().c_str());
     }
 
     ImGui::SetClipboardText(clipboard.str().c_str());
